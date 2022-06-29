@@ -1,3 +1,7 @@
+# ‼️ Warning
+
+This is a fork of the original [auth](https://github.com/go-pkgz/auth) library with some PR added for OpenID support. Please consider using the upstream library instead. This fork will be removed once the upstream is updated to support OpenID.
+
 # auth - authentication via oauth2, direct and email
 [![Build Status](https://github.com/go-pkgz/auth/workflows/build/badge.svg)](https://github.com/go-pkgz/auth/actions) [![Coverage Status](https://coveralls.io/repos/github/go-pkgz/auth/badge.svg?branch=master)](https://coveralls.io/github/go-pkgz/auth?branch=master) [![godoc](https://godoc.org/github.com/go-pkgz/auth?status.svg)](https://pkg.go.dev/github.com/go-pkgz/auth?tab=doc)
 
