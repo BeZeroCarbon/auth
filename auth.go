@@ -193,18 +193,15 @@ func (s *Service) Handlers() (authHandler, avatarHandler http.Handler) {
 		// show user info
 		if elems[len(elems)-1] == "user" {
 			claims, _, err := s.jwtService.Get(r)
-			if err != nil {
+			if err != nil || claims.User == nil {
 				w.WriteHeader(http.StatusUnauthorized)
-				rest.RenderJSON(w, rest.JSON{"error": err.Error()})
+				msg := "user is nil"
+				if err != nil {
+					msg = err.Error()
+				}
+				rest.RenderJSON(w, rest.JSON{"error": msg})
 				return
 			}
-
-			if claims.User == nil {
-				w.WriteHeader(http.StatusUnauthorized)
-				rest.RenderJSON(w, rest.JSON{"error": "user not set"})
-				return
-			}
-
 			rest.RenderJSON(w, claims.User)
 			return
 		}
@@ -239,18 +236,22 @@ func (s *Service) Middleware() middleware.Authenticator {
 	return s.authMiddleware
 }
 
-// AddProvider adds provider for given name
-func (s *Service) AddProvider(name, cid, csecret string) {
+// AddProviderWithUserAttributes adds provider with user attributes mapping
+func (s *Service) AddProviderWithUserAttributes(name, cid, csecret string, userAttributes provider.UserAttributes) {
 	p := provider.Params{
-		URL:         s.opts.URL,
-		JwtService:  s.jwtService,
-		Issuer:      s.issuer,
-		AvatarSaver: s.avatarProxy,
-		Cid:         cid,
-		Csecret:     csecret,
-		L:           s.logger,
+		URL:            s.opts.URL,
+		JwtService:     s.jwtService,
+		Issuer:         s.issuer,
+		AvatarSaver:    s.avatarProxy,
+		Cid:            cid,
+		Csecret:        csecret,
+		L:              s.logger,
+		UserAttributes: userAttributes,
 	}
+	s.addProvider(name, p)
+}
 
+func (s *Service) addProvider(name string, p provider.Params) {
 	switch strings.ToLower(name) {
 	case "github":
 		s.providers = append(s.providers, provider.NewService(provider.NewGithub(p)))
@@ -275,6 +276,23 @@ func (s *Service) AddProvider(name, cid, csecret string) {
 	}
 
 	s.authMiddleware.Providers = s.providers
+}
+
+// AddProvider adds provider for given name
+func (s *Service) AddProvider(name, cid, csecret string) {
+
+	p := provider.Params{
+		URL:            s.opts.URL,
+		JwtService:     s.jwtService,
+		Issuer:         s.issuer,
+		AvatarSaver:    s.avatarProxy,
+		Cid:            cid,
+		Csecret:        csecret,
+		L:              s.logger,
+		UserAttributes: map[string]string{},
+	}
+
+	s.addProvider(name, p)
 }
 
 // AddDevProvider with a custom host and port

@@ -85,7 +85,7 @@ func TestCustomProvider(t *testing.T) {
 			assert.NotEqual(t, "", resp.Cookies()[1].Value, "xsrf cookie set")
 
 			claims, err := params.JwtService.Parse(resp.Cookies()[0].Value)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			assert.Equal(t, token.User{Name: "admin", ID: "admin",
 				Picture: "http://127.0.0.1:9096/avatar?user=admin", IP: ""}, *claims.User)
@@ -100,7 +100,7 @@ func TestCustomProvider(t *testing.T) {
 
 	router := http.NewServeMux()
 	router.Handle("/auth/customprov/", http.HandlerFunc(s.Handler))
-	ts := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", 8080), Handler: router}
+	ts := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", 8080), Handler: router} //nolint:gosec
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -124,7 +124,7 @@ func TestCustomProvider(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("resp %s", string(body))
 	t.Logf("headers: %+v", resp.Header)
 
@@ -133,7 +133,7 @@ func TestCustomProvider(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	body, err = io.ReadAll(resp.Body)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 960, len(body))
 	t.Logf("headers: %+v", resp.Header)
 

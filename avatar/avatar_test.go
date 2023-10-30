@@ -227,7 +227,7 @@ func TestAvatar_resize(t *testing.T) {
 		assert.NotNil(t, resizedR, "file %s", c.file)
 
 		imgRz, format, err := image.Decode(resizedR)
-		assert.Nil(t, err, "file %s", c.file)
+		assert.NoError(t, err, "file %s", c.file)
 		assert.Equal(t, "png", format, "file %s", c.file)
 		bounds := imgRz.Bounds()
 		assert.Equal(t, c.wr, bounds.Dx(), "file %s", c.file)
@@ -241,7 +241,7 @@ func TestAvatar_GetGravatarURL(t *testing.T) {
 		err   error
 		url   string
 	}{
-		{"eefretsoul@gmail.com", nil, "https://www.gravatar.com/avatar/c82739de14cf64affaf30856ca95b851.jpg"},
+		{"eefretsoul@gmail.com", nil, "https://www.gravatar.com/avatar/c82739de14cf64affaf30856ca95b851"},
 		{"umputun-xyz@example.com", fmt.Errorf("404 Not Found"), ""},
 	}
 
@@ -254,7 +254,7 @@ func TestAvatar_GetGravatarURL(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
-			assert.Equal(t, url, tt.url)
+			assert.Equal(t, tt.url, url)
 		})
 	}
 }
@@ -268,13 +268,13 @@ func TestAvatar_Retry(t *testing.T) {
 		i++
 		return fmt.Errorf("err")
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, i)
 
 	st := time.Now()
 	err = retry(5, time.Millisecond, func() error {
 		return fmt.Errorf("err")
 	})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.True(t, time.Since(st) >= time.Microsecond*5)
 }

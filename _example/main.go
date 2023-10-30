@@ -1,3 +1,4 @@
+// Package main starts the example server
 package main
 
 import (
@@ -86,9 +87,10 @@ func main() {
 
 	// allow sign with apple id
 	appleCfg := provider.AppleConfig{
-		ClientID: os.Getenv("AEXMPL_APPLE_CID"),
-		TeamID:   os.Getenv("AEXMPL_APPLE_TID"),
-		KeyID:    os.Getenv("AEXMPL_APPLE_KEYID"), // private key identifier
+		ClientID:     os.Getenv("AEXMPL_APPLE_CID"),
+		TeamID:       os.Getenv("AEXMPL_APPLE_TID"),
+		KeyID:        os.Getenv("AEXMPL_APPLE_KEYID"), // private key identifier
+		ResponseMode: "query",                         // see https://developer.apple.com/documentation/sign_in_with_apple/request_an_authorization_to_the_sign_in_with_apple_server?changes=_1_2#4066168
 	}
 
 	if err := service.AddAppleProvider(appleCfg, provider.LoadApplePrivateKeyFromFile(os.Getenv("AEXMPL_APPLE_PRIVKEY_PATH"))); err != nil {
@@ -106,13 +108,13 @@ func main() {
 		}),
 	)
 
-	if token := os.Getenv("TELEGRAM_TOKEN"); token != "" {
+	if tkn := os.Getenv("TELEGRAM_TOKEN"); tkn != "" {
 		// add telegram provider
 		telegram := provider.TelegramHandler{
 			ProviderName: "telegram",
 			ErrorMsg:     "❌ Invalid auth request. Please try clicking link again.",
 			SuccessMsg:   "✅ You have successfully authenticated!",
-			Telegram:     provider.NewTelegramAPI(token, http.DefaultClient),
+			Telegram:     provider.NewTelegramAPI(tkn, http.DefaultClient),
 
 			L:            log.Default(),
 			TokenService: service.TokenService(),
@@ -203,7 +205,13 @@ func main() {
 	router.Mount("/auth", authRoutes)  // add auth handlers
 	router.Mount("/avatar", avaRoutes) // add avatar handler
 
-	if err := http.ListenAndServe(":8080", router); err != nil {
+	httpServer := &http.Server{
+		Addr:              ":8080",
+		ReadHeaderTimeout: 5 * time.Second,
+		Handler:           router,
+	}
+
+	if err := httpServer.ListenAndServe(); err != nil {
 		log.Printf("[PANIC] failed to start http server, %v", err)
 	}
 }
