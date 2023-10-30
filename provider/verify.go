@@ -176,10 +176,10 @@ func (e VerifyHandler) sendConfirmation(w http.ResponseWriter, r *http.Request) 
 		Token   string
 		Site    string
 	}{
-		User:    safeHTML(user),
-		Address: safeHTML(address),
-		Token:   template.HTMLEscapeString(tkn),
-		Site:    template.HTMLEscapeString(site),
+		User:    trim(user),
+		Address: trim(address),
+		Token:   tkn,
+		Site:    site,
 	}
 	buf := bytes.Buffer{}
 	if err = emailTmpl.Execute(&buf, tmplData); err != nil {
@@ -209,11 +209,8 @@ Confirmation for {{.User}} {{.Address}}, site {{.Site}}
 Token: {{.Token}}
 `
 
-func safeHTML(inp string) string {
-	res := template.HTMLEscapeString(inp)
-	res = strings.ReplaceAll(res, "&#34;", "\"")
-	res = strings.ReplaceAll(res, "&#39;", "'")
-	res = strings.ReplaceAll(res, "\n", "")
+func trim(inp string) string {
+	res := strings.ReplaceAll(inp, "\n", "")
 	res = strings.TrimSpace(res)
 	if len(res) > 128 {
 		return res[:128]
