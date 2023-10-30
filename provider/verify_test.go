@@ -84,7 +84,7 @@ func TestVerifyHandler_LoginSendConfirmRejected(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, 200, rr.Code)
 	assert.Equal(t, "blah@user.com", emailer.to)
-	// temporary: not doing a full check here to minimise conflicts with https://github.com/BeZeroCarbon/auth/pull/2
+	// temporary: not doing a full check here to minimize conflicts with https://github.com/BeZeroCarbon/auth/pull/2
 	assert.Contains(t, emailer.text, " blah@user.com remark42 token:")
 
 	tknStr := strings.Split(emailer.text, " token:")[1]
