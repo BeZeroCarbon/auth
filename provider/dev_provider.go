@@ -73,7 +73,8 @@ func (d *DevAuthServer) Run(ctx context.Context) { // nolint (gocyclo)
 	}
 
 	d.httpServer = &http.Server{
-		Addr: fmt.Sprintf(":%d", d.Provider.Port),
+		Addr:              fmt.Sprintf(":%d", d.Provider.Port),
+		ReadHeaderTimeout: 5 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			d.Logf("[DEBUG] dev oauth request %s %s %+v", r.Method, r.URL, r.Header)
 			switch {
@@ -82,7 +83,7 @@ func (d *DevAuthServer) Run(ctx context.Context) { // nolint (gocyclo)
 
 				// first time it will be called without username and will ask for one
 				if !d.Automatic && (r.ParseForm() != nil || r.Form.Get("username") == "") {
-					formData := struct{ Query template.URL }{Query: template.URL(r.URL.RawQuery)} //nolint:gosec // query is safes
+					formData := struct{ Query template.URL }{Query: template.URL(r.URL.RawQuery)} //nolint:gosec // query is safe
 					if err = userFormTmpl.Execute(w, formData); err != nil {
 						d.Logf("[WARN] can't write, %s", err)
 					}

@@ -28,19 +28,22 @@ type Oauth2Handler struct {
 	Params
 
 	// all of these fields specific to particular oauth2 provider
-	name              string
-	infoURL           string
+	name            string
+	infoURL         string
+	endpoint        oauth2.Endpoint
+	scopes          []string
+	mapUser         func(UserData, []byte) token.User // map info from InfoURL to User
+	bearerTokenHook BearerTokenHook                   // a way to get a Bearer token received from oauth2-provider
+	conf            oauth2.Config
+
 	jwksURL           string
-	endpoint          oauth2.Endpoint
-	scopes            []string
-	mapUser           func(UserData, []byte) token.User // map info from InfoURL to User
-	conf              oauth2.Config
 	keyfunc           jwt.Keyfunc
 	kfLock            *sync.Mutex
 	refreshTokenStore RefreshTokenStore
 	logoutURL         string
 }
 
+// RefreshTokenStore stores tokens, keyed by the claims user
 type RefreshTokenStore interface {
 	Save(token string, claims token.Claims) error
 	Load(claims token.Claims) (string, error)
@@ -49,13 +52,15 @@ type RefreshTokenStore interface {
 // Params to make initialized and ready to use provider
 type Params struct {
 	logger.L
-	URL         string
-	JwtService  TokenService
-	Cid         string
-	Csecret     string
-	Issuer      string
-	AvatarSaver AvatarSaver
-	UseOpenID   bool // switch to OpenID flow, load user from an ID token instead of userinfo
+	URL            string
+	JwtService     TokenService
+	Cid            string
+	Csecret        string
+	Issuer         string
+	AvatarSaver    AvatarSaver
+	UserAttributes UserAttributes
+
+	UseOpenID bool // switch to OpenID flow, load user from an ID token instead of userinfo
 
 	Port int    // relevant for providers supporting port customization, for example dev oauth2
 	Host string // relevant for providers supporting host customization, for example dev oauth2
@@ -72,6 +77,9 @@ func (u UserData) Value(key string) string {
 	}
 	return ""
 }
+
+// BearerTokenHook accepts provider name, user and token, received during oauth2 authentication
+type BearerTokenHook func(provider string, user token.User, token oauth2.Token)
 
 // initOauth2Handler makes oauth2 handler for given provider
 func initOauth2Handler(p Params, service Oauth2Handler) Oauth2Handler {
@@ -198,11 +206,20 @@ func (p Oauth2Handler) AuthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userWithAva, err := setAvatar(p.AvatarSaver, *claims.User, client)
+	if err != nil {
+		rest.SendErrorJSON(w, r, p.L, http.StatusInternalServerError, err, "failed to save avatar to proxy")
+		return
+	}
 	claims.User = &userWithAva
 
 	if _, err = p.JwtService.Set(w, claims); err != nil {
 		rest.SendErrorJSON(w, r, p.L, http.StatusInternalServerError, err, "failed to set token")
 		return
+	}
+
+	if p.bearerTokenHook != nil && tok != nil {
+		p.Logf("[DEBUG] pass bearer token %s, %s", p.Name(), tok.TokenType)
+		p.bearerTokenHook(p.Name(), *claims.User, *tok)
 	}
 
 	p.Logf("[DEBUG] user info %+v", claims.User)
@@ -235,6 +252,7 @@ func (p Oauth2Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Refresh returns the latest claims data from the source using the currently stored refresh token
 func (p Oauth2Handler) Refresh(claims token.Claims) (token.Claims, error) {
 	if p.refreshTokenStore == nil {
 		p.L.Logf("[WARN] refresh token store is not set, can't refresh tokens")

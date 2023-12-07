@@ -47,6 +47,7 @@ type Provider interface {
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
 }
 
+// TokenRefresher updates claims data from the source
 type TokenRefresher interface {
 	Refresh(claims token.Claims) (token.Claims, error)
 }

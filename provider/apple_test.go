@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -71,13 +70,13 @@ func TestAppleHandler_NewApple(t *testing.T) {
 	// check empty params
 	aCfg.ClientID = ""
 	_, err = NewApple(p, aCfg, cl)
-	assert.NotNil(t, err, "required params missed: ClientID")
+	assert.Error(t, err, "required params missed: ClientID")
 	aCfg.TeamID = ""
 	_, err = NewApple(p, aCfg, cl)
-	assert.NotNil(t, err, "required params missed: ClientID, TeamID")
+	assert.Error(t, err, "required params missed: ClientID, TeamID")
 	aCfg.KeyID = ""
 	_, err = NewApple(p, aCfg, cl)
-	assert.NotNil(t, err, "required params missed: ClientID, TeamID, KeyID")
+	assert.Error(t, err, "required params missed: ClientID, TeamID, KeyID")
 }
 
 // TestAppleHandler_LoadPrivateKey need for testing pre-defined loader from local file
@@ -88,26 +87,38 @@ SJ9XeeC8gqcpE/VLhZHGsnPPiPagCgYIKoZIzj0DAQehRANCAATnwlOv7I6eC3Ec
 /+GeYXT+hbcmhEVveDqLmNcHiXCR9XxJZXtpMRlcRfY8eaJpUdig27dfsbvpnfX5
 Ivx5tHkv
 -----END PRIVATE KEY-----` // #nosec
+	testInvalidKey := `-----BEGIN PRIVATE KEY-----
+MIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAKNwapOQ6rQJHetP
+HRlJBIh1OsOsUBiXb3rXXE3xpWAxAha0MH+UPRblOko+5T2JqIb+xKf9Vi3oTM3t
+KvffaOPtzKXZauscjq6NGzA3LgeiMy6q19pvkUUOlGYK6+Xfl+B7Xw6+hBMkQuGE
+nUS8nkpR5mK4ne7djIyfHFfMu4ptAgMBAAECgYA+s0PPtMq1osG9oi4xoxeAGikf
+JB3eMUptP+2DYW7mRibc+ueYKhB9lhcUoKhlQUhL8bUUFVZYakP8xD21thmQqnC4
+f63asad0ycteJMLb3r+z26LHuCyOdPg1pyLk3oQ32lVQHBCYathRMcVznxOG16VK
+I8BFfstJTaJu0lK/wQJBANYFGusBiZsJQ3utrQMVPpKmloO2++4q1v6ZR4puDQHx
+TjLjAIgrkYfwTJBLBRZxec0E7TmuVQ9uJ+wMu/+7zaUCQQDDf2xMnQqYknJoKGq+
+oAnyC66UqWC5xAnQS32mlnJ632JXA0pf9pb1SXAYExB1p9Dfqd3VAwQDwBsDDgP6
+HD8pAkEA0lscNQZC2TaGtKZk2hXkdcH1SKru/g3vWTkRHxfCAznJUaza1fx0wzdG
+GcES1Bdez0tbW4llI5By/skZc2eE3QJAFl6fOskBbGHde3Oce0F+wdZ6XIJhEgCP
+iukIcKZoZQzoiMJUoVRrA5gqnmaYDI5uRRl/y57zt6YksR3KcLUIuQJAd242M/WF
+6YAZat3q/wEeETeQq1wrooew+8lHl05/Nt0cCpV48RGEhJ83pzBm3mnwHf8lTBJH
+x6XroMXsmbnsEw==
+-----END PRIVATE KEY-----`
 	testPrivKeyFileName := "privKeyTest.tmp"
+	testBadPrivKeyFileName := "privKeyBadTest.tmp"
 
-	dir, err := ioutil.TempDir(os.TempDir(), testPrivKeyFileName)
-	assert.NoError(t, err)
-	assert.NotNil(t, dir)
-	if err != nil {
-		require.NoError(t, err)
-		return
-	}
+	dir, err := os.MkdirTemp(os.TempDir(), testPrivKeyFileName)
+	require.NoError(t, err)
 
 	defer func() {
 		require.NoError(t, os.RemoveAll(dir))
 	}()
 
-	tmpfn := filepath.Join(dir, testPrivKeyFileName)
-	if err = os.WriteFile(tmpfn, []byte(testValidKey), 0o600); err != nil {
-		require.NoError(t, err)
-		return
-	}
-	assert.NoError(t, err)
+	tmpFn := filepath.Join(dir, testPrivKeyFileName)
+	err = os.WriteFile(tmpFn, []byte(testValidKey), 0o600)
+	require.NoError(t, err)
+	badTmpFn := filepath.Join(dir, testBadPrivKeyFileName)
+	err = os.WriteFile(badTmpFn, []byte(testInvalidKey), 0o600)
+	require.NoError(t, err)
 	p := Params{
 		URL:     "http://localhost",
 		Issuer:  "test-issuer",
@@ -121,14 +132,25 @@ Ivx5tHkv
 		KeyID:    "BS2A79VCTT",
 	}
 
-	ah, err := NewApple(p, aCfg, LoadApplePrivateKeyFromFile(tmpfn))
+	// test good scenario
+	ah, err := NewApple(p, aCfg, LoadApplePrivateKeyFromFile(tmpFn))
 	assert.NoError(t, err)
 	assert.IsType(t, &AppleHandler{}, ah)
 	assert.Equal(t, ah.name, "apple")
 	assert.Equal(t, ah.conf.ClientID, aCfg.ClientID)
 	assert.NotEmpty(t, ah.conf.privateKey)
+	assert.NotEmpty(t, ah.conf.publicKey)
 	assert.NotEmpty(t, ah.conf.clientSecret)
 
+	// test bad scenario, should not panic
+	ah, err = NewApple(p, aCfg, LoadApplePrivateKeyFromFile(badTmpFn))
+	assert.Error(t, err)
+	assert.IsType(t, &AppleHandler{}, ah)
+	assert.Empty(t, ah.conf.clientSecret, "client secret was not loaded")
+	assert.Empty(t, ah.conf.publicKey, "public key was not loaded")
+	assert.Equal(t, ah.name, "apple")
+	assert.Equal(t, ah.conf.ClientID, aCfg.ClientID)
+	assert.NotEmpty(t, ah.conf.privateKey)
 }
 
 func TestAppleHandlerCreateClientSecret(t *testing.T) {
@@ -137,7 +159,7 @@ func TestAppleHandlerCreateClientSecret(t *testing.T) {
 	assert.Error(t, err)
 	assert.Empty(t, tkn)
 
-	ah, err = prepareAppleHandlerTest()
+	ah, err = prepareAppleHandlerTest("", []string{})
 	assert.NoError(t, err)
 	assert.IsType(t, &AppleHandler{}, ah)
 
@@ -175,7 +197,7 @@ func TestAppleParseUserData(t *testing.T) {
 }
 
 func TestPrepareLoginURL(t *testing.T) {
-	ah, err := prepareAppleHandlerTest()
+	ah, err := prepareAppleHandlerTest("", []string{})
 	assert.NoError(t, err)
 	assert.IsType(t, &AppleHandler{}, ah)
 
@@ -192,6 +214,34 @@ func TestPrepareLoginURL(t *testing.T) {
 	assert.Equal(t, q.Get("client_id"), ah.conf.ClientID)
 }
 
+func TestPrepareLoginURLWithCustomResponseMode(t *testing.T) {
+	ah, err := prepareAppleHandlerTest("query", []string{})
+	assert.NoError(t, err)
+	assert.IsType(t, &AppleHandler{}, ah)
+	ah.conf.scopes = []string{""}
+	lURL, err := ah.prepareLoginURL("1112233", "apple-test/login")
+	assert.NoError(t, err)
+	assert.True(t, strings.HasPrefix(lURL, ah.endpoint.AuthURL))
+
+	checkURL, err := url.Parse(lURL)
+	assert.NoError(t, err)
+	q := checkURL.Query()
+	assert.Equal(t, q.Get("state"), "1112233")
+	assert.Equal(t, q.Get("response_type"), "code")
+	assert.Equal(t, q.Get("response_mode"), "query")
+	assert.Equal(t, q.Get("client_id"), ah.conf.ClientID)
+}
+
+func TestThrowsWhenNotEmptyScopeAndWrongResponseMode(t *testing.T) {
+	ah, err := prepareAppleHandlerTest("query", []string{"email"})
+	assert.NoError(t, err)
+	assert.IsType(t, &AppleHandler{}, ah)
+
+	lURL, err := ah.prepareLoginURL("1112233", "apple-test/login")
+	assert.Equal(t, "", lURL)
+	assert.Error(t, err)
+}
+
 func TestAppleHandlerMakeRedirURL(t *testing.T) {
 	cases := []struct{ rootURL, route, out string }{
 		{"localhost:8080/", "/my/auth/path/apple", "localhost:8080/my/auth/path/callback"},
@@ -202,7 +252,7 @@ func TestAppleHandlerMakeRedirURL(t *testing.T) {
 		{"mysite.com", "", "mysite.com/callback"},
 	}
 
-	ah, err := prepareAppleHandlerTest()
+	ah, err := prepareAppleHandlerTest("", []string{})
 	assert.NoError(t, err)
 	assert.IsType(t, &AppleHandler{}, ah)
 
@@ -226,7 +276,7 @@ func TestAppleHandler_LoginHandler(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("resp %s", string(body))
 	t.Logf("headers: %+v", resp.Header)
 
@@ -239,7 +289,7 @@ func TestAppleHandler_LoginHandler(t *testing.T) {
 
 	u := token.User{}
 	err = json.Unmarshal(body, &u)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	testHashID := token.HashID(sha1.New(), "userid1")
 	testUserID := "apple_" + testHashID
 	testUserName := "noname_" + testUserID[6:12]
@@ -257,7 +307,6 @@ func TestAppleHandler_LoginHandler(t *testing.T) {
 
 }
 
-//nolint dupl
 func TestAppleHandler_LogoutHandler(t *testing.T) {
 
 	teardown := prepareAppleOauthTest(t, 8691, 8692, nil)
@@ -267,13 +316,13 @@ func TestAppleHandler_LogoutHandler(t *testing.T) {
 	require.Nil(t, err)
 	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
 
-	req, err := http.NewRequest("GET", "http://localhost:8691/logout", nil)
+	req, err := http.NewRequest("GET", "http://localhost:8691/logout", http.NoBody)
 	require.Nil(t, err)
 	resp, err := client.Do(req)
 	require.Nil(t, err)
 	assert.Equal(t, 403, resp.StatusCode, "user not lagged in")
 
-	req, err = http.NewRequest("GET", "http://localhost:8691/logout", nil)
+	req, err = http.NewRequest("GET", "http://localhost:8691/logout", http.NoBody)
 	require.NoError(t, err)
 	expiration := int(365 * 24 * time.Hour.Seconds()) //nolint
 	req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtValid, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
@@ -295,7 +344,7 @@ func TestAppleHandler_Exchange(t *testing.T) {
 	teardown := prepareAppleOauthTest(t, 8981, 8982, &testResponseToken)
 	defer teardown()
 
-	ah, err := prepareAppleHandlerTest()
+	ah, err := prepareAppleHandlerTest("", []string{})
 	require.Nil(t, err)
 
 	ah.endpoint = oauth2.Endpoint{
@@ -348,7 +397,7 @@ Ivx5tHkv
 -----END PRIVATE KEY-----`
 	testPrivKeyFileName := "privKeyTest.tmp"
 
-	dir, err := ioutil.TempDir(os.TempDir(), testPrivKeyFileName)
+	dir, err := os.MkdirTemp(os.TempDir(), testPrivKeyFileName)
 	assert.NoError(t, err)
 	assert.NotNil(t, dir)
 	if err != nil {
@@ -357,12 +406,8 @@ Ivx5tHkv
 	}
 
 	filePath = filepath.Join(dir, testPrivKeyFileName)
-	if err = os.WriteFile(filePath, []byte(testValidKey), 0o600); err != nil {
-		assert.NoError(t, err)
-		log.Fatal(err)
-		return "", nil
-	}
-	assert.NoError(t, err)
+	err = os.WriteFile(filePath, []byte(testValidKey), 0o600)
+	require.NoError(t, err)
 	ctx, cancelCtx := context.WithTimeout(context.Background(), time.Second*60)
 
 	go func() {
@@ -372,8 +417,7 @@ Ivx5tHkv
 	return filePath, cancelCtx
 }
 
-func prepareAppleHandlerTest() (*AppleHandler, error) {
-
+func prepareAppleHandlerTest(responseMode string, scopes []string) (*AppleHandler, error) {
 	p := Params{
 		URL:     "http://localhost",
 		Issuer:  "test-issuer",
@@ -382,17 +426,20 @@ func prepareAppleHandlerTest() (*AppleHandler, error) {
 	}
 
 	aCfg := AppleConfig{
-		ClientID: "auth.example.com",
-		TeamID:   "AA11BB22CC",
-		KeyID:    "BS2A79VCTT",
+		ClientID:     "auth.example.com",
+		TeamID:       "AA11BB22CC",
+		KeyID:        "BS2A79VCTT",
+		ResponseMode: responseMode,
+		scopes:       scopes,
 	}
+
 	cl := customLoader{}
 	return NewApple(p, aCfg, cl)
 }
 
 func prepareAppleOauthTest(t *testing.T, loginPort, authPort int, testToken *string) func() {
 	signKey, testJWK := createTestSignKeyPairs(t)
-	provider, err := prepareAppleHandlerTest()
+	provider, err := prepareAppleHandlerTest("", []string{})
 	assert.NoError(t, err)
 	assert.IsType(t, &AppleHandler{}, provider)
 
@@ -441,13 +488,12 @@ func prepareAppleOauthTest(t *testing.T, loginPort, authPort int, testToken *str
 
 	svc := Service{Provider: provider}
 
-	ts := &http.Server{Addr: fmt.Sprintf(":%d", loginPort), Handler: http.HandlerFunc(svc.Handler)}
+	ts := &http.Server{Addr: fmt.Sprintf(":%d", loginPort), Handler: http.HandlerFunc(svc.Handler)} //nolint:gosec
 
 	count := 0
 	useIds := []string{"myuser1", "myuser2"} // user for first ans second calls
 
-	//nolint dupl
-	oauth := &http.Server{
+	oauth := &http.Server{ //nolint:gosec
 		Addr: fmt.Sprintf(":%d", authPort),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[MOCK OAUTH] request %s %s %+v", r.Method, r.URL, r.Header)
@@ -476,15 +522,15 @@ func prepareAppleOauthTest(t *testing.T, loginPort, authPort int, testToken *str
 					"error":"test error occurred"
 					}`
 					w.WriteHeader(http.StatusBadRequest)
-					_, err := w.Write([]byte(res))
-					assert.NoError(t, err)
+					_, e := w.Write([]byte(res))
+					assert.NoError(t, e)
 					return
 
 				case "test-json-error":
 					res = `invalid json data`
 					w.WriteHeader(http.StatusBadRequest)
-					_, err := w.Write([]byte(res))
-					assert.NoError(t, err)
+					_, e := w.Write([]byte(res))
+					assert.NoError(t, e)
 					return
 				}
 
@@ -526,7 +572,6 @@ func prepareAppleOauthTest(t *testing.T, loginPort, authPort int, testToken *str
 				  ]
 				}`, testJWK)
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
-				// provider.conf.publicKey = pub // re-define pubKey for JWK test
 				_, err := w.Write([]byte(testKeys))
 				assert.NoError(t, err)
 			default:
@@ -566,6 +611,7 @@ func createTestResponseToken(privKey interface{}) (string, error) {
 }
 
 func createTestSignKeyPairs(t *testing.T) (privKey *rsa.PrivateKey, jwk string) {
+	//nolint gosec // test credentials
 	privateStr := `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA4f5wg5l2hKsTeNem/V41fGnJm6gOdrj8ym3rFkEU/wT8RDtn
 SgFEZOQpHEgQ7JL38xUfU0Y3g6aYw9QT0hJ7mCpz9Er5qLaMXJwZxzHzAahlfA0i

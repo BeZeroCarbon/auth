@@ -21,15 +21,17 @@ import (
 	"github.com/go-pkgz/auth/token"
 )
 
-var testJwtValid = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0X3N5cyIsImV4cCI6Mjc4OTE5MTgyMiwianRpIjoicmFuZG9tIGlkIiwiaXNzIjoicmVtYXJrNDIiLCJuYmYiOjE1MjY4ODQyMjIsInVzZXIiOnsibmFtZSI6Im5hbWUxIiwiaWQiOiJpZDEiLCJwaWN0dXJlIjoiaHR0cDovL2V4YW1wbGUuY29tL3BpYy5wbmciLCJpcCI6IjEyNy4wLjAuMSIsImVtYWlsIjoibWVAZXhhbXBsZS5jb20iLCJhdHRycyI6eyJib29sYSI6dHJ1ZSwic3RyYSI6InN0cmEtdmFsIn19fQ.OWPdibrSSSHuOV3DzzLH5soO6kUcERELL7_GLf7Ja_E"
+var testJwtValid = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0X3N5cyIsImV4cCI6Mjc4OTE5MTgyMiwianRpIjoicmFuZG9tIGlkIiwiaXNzIjoicmVtYXJrNDIiLCJuYmYiOjE1MjY4ODQyMjIsInVzZXIiOnsibmFtZSI6Im5hbWUxIiwiaWQiOiJwcm92aWRlcjFfaWQxIiwicGljdHVyZSI6Imh0dHA6Ly9leGFtcGxlLmNvbS9waWMucG5nIiwiaXAiOiIxMjcuMC4wLjEiLCJlbWFpbCI6Im1lQGV4YW1wbGUuY29tIiwiYXR0cnMiOnsiYm9vbGEiOnRydWUsInN0cmEiOiJzdHJhLXZhbCJ9fX0.orBYt_pVA4uvCCw0JMQLla3DA0mpjRTl_U9vT_wtI30"
 
-var testJwtExpired = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0X3N5cyIsImV4cCI6MTE4OTE5MTgyMiwianRpIjoicmFuZG9tIGlkIiwiaXNzIjoicmVtYXJrNDIiLCJuYmYiOjE1MjY4ODQyMjIsInVzZXIiOnsibmFtZSI6Im5hbWUxIiwiaWQiOiJpZDEiLCJwaWN0dXJlIjoiaHR0cDovL2V4YW1wbGUuY29tL3BpYy5wbmciLCJpcCI6IjEyNy4wLjAuMSIsImVtYWlsIjoibWVAZXhhbXBsZS5jb20iLCJhdHRycyI6eyJib29sYSI6dHJ1ZSwic3RyYSI6InN0cmEtdmFsIn19fQ.lJNUjG_9rpAghqy5GwIOrgfQnGDnF3PW5sGzKdijmmg"
+var testJwtValidWrongProvider = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0X3N5cyIsImV4cCI6Mjc4OTE5MTgyMiwianRpIjoicmFuZG9tIGlkIiwiaXNzIjoicmVtYXJrNDIiLCJuYmYiOjE1MjY4ODQyMjIsInVzZXIiOnsibmFtZSI6Im5hbWUxIiwiaWQiOiJwcm92aWRlcjNfaWQxIiwicGljdHVyZSI6Imh0dHA6Ly9leGFtcGxlLmNvbS9waWMucG5nIiwiaXAiOiIxMjcuMC4wLjEiLCJlbWFpbCI6Im1lQGV4YW1wbGUuY29tIiwiYXR0cnMiOnsiYm9vbGEiOnRydWUsInN0cmEiOiJzdHJhLXZhbCJ9fX0.p0w7GmXKwujm0ROn0RIACnBwN4KmPcqXDMS9YoFq4jQ"
+
+var testJwtExpired = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0X3N5cyIsImV4cCI6MTE4OTE5MTgyMiwianRpIjoicmFuZG9tIGlkIiwiaXNzIjoicmVtYXJrNDIiLCJuYmYiOjE1MjY4ODQyMjIsInVzZXIiOnsibmFtZSI6Im5hbWUxIiwiaWQiOiJwcm92aWRlcjFfaWQxIiwicGljdHVyZSI6Imh0dHA6Ly9leGFtcGxlLmNvbS9waWMucG5nIiwiaXAiOiIxMjcuMC4wLjEiLCJlbWFpbCI6Im1lQGV4YW1wbGUuY29tIiwiYXR0cnMiOnsiYm9vbGEiOnRydWUsInN0cmEiOiJzdHJhLXZhbCJ9fX0.PlRRc5YA6pvoVOT4NLLOoTwU2Kn3GaTfbjr6j-P6RhA"
 
 var testJwtWithHandshake = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0X3N5cyIsImV4cCI6Mjc4OTE5MTgyMiwianRpIjoicmFuZG9tIGlkIiwiaXNzIjoicmVtYXJrNDIiLCJuYmYiOjE1MjY4ODQyMjIsInVzZXIiOnsibmFtZSI6Im5hbWUxIiwiaWQiOiJpZDEiLCJwaWN0dXJlIjoiaHR0cDovL2V4YW1wbGUuY29tL3BpYy5wbmciLCJpcCI6IjEyNy4wLjAuMSIsImVtYWlsIjoibWVAZXhhbXBsZS5jb20iLCJhdHRycyI6eyJib29sYSI6dHJ1ZSwic3RyYSI6InN0cmEtdmFsIn19LCJoYW5kc2hha2UiOnsic3RhdGUiOiIxMjM0NTYiLCJmcm9tIjoiZnJvbSIsImlkIjoibXlpZC0xMjM0NTYifX0._2X1cAEoxjLA7XuN8xW8V9r7rYfP_m9lSRz_9_UFzac"
 
 var testJwtNoUser = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjI3ODkxOTE4MjIsImp0aSI6InJhbmRvbSBpZCIsImlzcyI6InJlbWFyazQyIiwibmJmIjoxNTI2ODg0MjIyfQ.sBpblkbBRzZsBSPPNrTWqA5h7h54solrw5L4IypJT_o"
 
-var testJwtWithRole = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0X3N5cyIsImV4cCI6Mjc4OTE5MTgyMiwianRpIjoicmFuZG9tIGlkIiwiaXNzIjoicmVtYXJrNDIiLCJuYmYiOjE1MjY4ODQyMjIsInVzZXIiOnsibmFtZSI6Im5hbWUxIiwiaWQiOiJpZDEiLCJwaWN0dXJlIjoiaHR0cDovL2V4YW1wbGUuY29tL3BpYy5wbmciLCJpcCI6IjEyNy4wLjAuMSIsImVtYWlsIjoibWVAZXhhbXBsZS5jb20iLCJhdHRycyI6eyJib29sYSI6dHJ1ZSwic3RyYSI6InN0cmEtdmFsIn0sInJvbGUiOiJlbXBsb3llZSJ9fQ.VLW4_LUDZq_eFc9F1Zx1lbv2Whic2VHy6C0dJ5azL8A"
+var testJwtWithRole = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0X3N5cyIsImV4cCI6Mjc4OTE5MTgyMiwianRpIjoicmFuZG9tIGlkIiwiaXNzIjoicmVtYXJrNDIiLCJuYmYiOjE1MjY4ODQyMjIsInVzZXIiOnsibmFtZSI6Im5hbWUxIiwiaWQiOiJwcm92aWRlcjFfaWQxIiwicGljdHVyZSI6Imh0dHA6Ly9leGFtcGxlLmNvbS9waWMucG5nIiwiaXAiOiIxMjcuMC4wLjEiLCJlbWFpbCI6Im1lQGV4YW1wbGUuY29tIiwiYXR0cnMiOnsiYm9vbGEiOnRydWUsInN0cmEiOiJzdHJhLXZhbCJ9LCJyb2xlIjoiZW1wbG95ZWUifX0.o95raB0aNl2TWUs43Tu6xyX5Y3Fa5wv6_6RFJuN-d6g"
 
 var testJWTKey = "xyz 12345"
 
@@ -40,7 +42,7 @@ func TestAuthJWTCookie(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		u, err := token.GetUserInfo(r)
 		assert.NoError(t, err)
-		assert.Equal(t, token.User{Name: "name1", ID: "id1", Picture: "http://example.com/pic.png",
+		assert.Equal(t, token.User{Name: "name1", ID: "provider1_id1", Picture: "http://example.com/pic.png",
 			IP: "127.0.0.1", Email: "me@example.com", Audience: "test_sys",
 			Attributes: map[string]interface{}{"boola": true, "stra": "stra-val"}}, u)
 		w.WriteHeader(201)
@@ -49,40 +51,61 @@ func TestAuthJWTCookie(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	expiration := int(365 * 24 * time.Hour.Seconds()) //nolint
-	req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
-	require.Nil(t, err)
-	req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtValid, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
-	req.Header.Add("X-XSRF-TOKEN", "random id")
-
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	assert.Equal(t, 201, resp.StatusCode, "valid token user")
+	expiration := int(365 * 24 * time.Hour.Seconds()) //nolint
 
-	req, err = http.NewRequest("GET", server.URL+"/auth", http.NoBody)
-	require.Nil(t, err)
-	req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtValid, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
-	req.Header.Add("X-XSRF-TOKEN", "wrong id")
-	resp, err = client.Do(req)
-	require.NoError(t, err)
-	assert.Equal(t, 401, resp.StatusCode, "xsrf mismatch")
+	t.Run("valid token", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
+		require.Nil(t, err)
+		req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtValid, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
+		req.Header.Add("X-XSRF-TOKEN", "random id")
 
-	req, err = http.NewRequest("GET", server.URL+"/auth", http.NoBody)
-	require.Nil(t, err)
-	req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtExpired, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
-	req.Header.Add("X-XSRF-TOKEN", "random id")
-	resp, err = client.Do(req)
-	require.NoError(t, err)
-	assert.Equal(t, 201, resp.StatusCode, "token expired and refreshed")
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, 201, resp.StatusCode, "valid token user")
+	})
 
-	req, err = http.NewRequest("GET", server.URL+"/auth", http.NoBody)
-	require.Nil(t, err)
-	req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtNoUser, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
-	req.Header.Add("X-XSRF-TOKEN", "random id")
-	resp, err = client.Do(req)
-	require.NoError(t, err)
-	assert.Equal(t, 401, resp.StatusCode, "no user info in the token")
+	t.Run("valid token, wrong provider", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
+		require.Nil(t, err)
+		req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtValidWrongProvider, HttpOnly: true, Path: "/",
+			MaxAge: expiration, Secure: false})
+		req.Header.Add("X-XSRF-TOKEN", "random id")
+
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, 401, resp.StatusCode, "user name1/provider3_id1 provider is not allowed")
+	})
+
+	t.Run("xsrf mismatch", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
+		require.Nil(t, err)
+		req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtValid, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
+		req.Header.Add("X-XSRF-TOKEN", "wrong id")
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, 401, resp.StatusCode, "xsrf mismatch")
+	})
+
+	t.Run("token expired and refreshed", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
+		require.Nil(t, err)
+		req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtExpired, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
+		req.Header.Add("X-XSRF-TOKEN", "random id")
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, 201, resp.StatusCode, "token expired and refreshed")
+	})
+
+	t.Run("no user info in the token", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
+		require.Nil(t, err)
+		req.AddCookie(&http.Cookie{Name: "JWT", Value: testJwtNoUser, HttpOnly: true, Path: "/", MaxAge: expiration, Secure: false})
+		req.Header.Add("X-XSRF-TOKEN", "random id")
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, 401, resp.StatusCode, "no user info in the token")
+	})
 }
 
 func TestAuthJWTHeader(t *testing.T) {
@@ -91,19 +114,32 @@ func TestAuthJWTHeader(t *testing.T) {
 	defer server.Close()
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
-	require.Nil(t, err)
-	req.Header.Add("X-JWT", testJwtValid)
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	assert.Equal(t, 201, resp.StatusCode, "valid token user")
+	t.Run("valid token", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
+		require.Nil(t, err)
+		req.Header.Add("X-JWT", testJwtValid)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, 201, resp.StatusCode, "valid token user")
+	})
 
-	req, err = http.NewRequest("GET", server.URL+"/auth", http.NoBody)
-	require.Nil(t, err)
-	req.Header.Add("X-JWT", testJwtExpired)
-	resp, err = client.Do(req)
-	require.NoError(t, err)
-	assert.Equal(t, 401, resp.StatusCode, "token expired")
+	t.Run("valid token, wrong provider", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
+		require.Nil(t, err)
+		req.Header.Add("X-JWT", testJwtValidWrongProvider)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, 401, resp.StatusCode, "wrong provider")
+	})
+
+	t.Run("token expired", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/auth", http.NoBody)
+		require.Nil(t, err)
+		req.Header.Add("X-JWT", testJwtExpired)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, 401, resp.StatusCode, "token expired")
+	})
 }
 
 func TestAuthJWTRefresh(t *testing.T) {
@@ -118,7 +154,7 @@ func TestAuthJWTRefresh(t *testing.T) {
 		},
 		User: &token.User{
 			Name:    "name1",
-			ID:      "id1",
+			ID:      "mockRefreshableProvider_id1",
 			Picture: "http://example.com/pic.png",
 			IP:      "127.0.0.1",
 			Email:   "me@example.com",
@@ -150,7 +186,7 @@ func TestAuthJWTRefresh(t *testing.T) {
 	assert.Equal(t, 201, resp.StatusCode, "token expired and refreshed")
 
 	cookies := resp.Cookies()
-	assert.Equal(t, 2, len(cookies))
+	require.Equal(t, 2, len(cookies))
 	assert.Equal(t, "JWT", resp.Cookies()[0].Name)
 	t.Log(resp.Cookies()[0].Value)
 	assert.True(t, resp.Cookies()[0].Value != expToken, "jwt token changed")
@@ -206,7 +242,7 @@ func TestAuthJWTRefreshConcurrentWithCache(t *testing.T) {
 	// make another expired token
 	c, err := a.JWTService.Parse(testJwtExpired)
 	require.NoError(t, err)
-	c.User.ID = "other ID"
+	c.User.ID = "provider1_other ID"
 	tkSvc := a.JWTService.(*token.Service)
 	tkn, err := tkSvc.Token(c)
 	require.NoError(t, err)
@@ -234,7 +270,7 @@ type badJwtService struct {
 	*token.Service
 }
 
-func (b *badJwtService) Set(w http.ResponseWriter, claims token.Claims) (token.Claims, error) {
+func (b *badJwtService) Set(http.ResponseWriter, token.Claims) (token.Claims, error) {
 	return token.Claims{}, fmt.Errorf("jwt set fake error")
 }
 
@@ -442,7 +478,7 @@ func TestRBAC(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u, err := token.GetUserInfo(r)
 		assert.NoError(t, err)
-		assert.Equal(t, token.User{Name: "name1", ID: "id1", Picture: "http://example.com/pic.png",
+		assert.Equal(t, token.User{Name: "name1", ID: "provider1_id1", Picture: "http://example.com/pic.png",
 			IP: "127.0.0.1", Email: "me@example.com", Audience: "test_sys",
 			Attributes: map[string]interface{}{"boola": true, "stra": "stra-val"},
 			Role:       "employee"}, u)
@@ -467,7 +503,7 @@ func TestRBAC(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 201, resp.StatusCode, "valid token user")
 
-	// employee route only, token without employee role
+	// employee route only, token without an employee role
 	expiration = int(365 * 24 * time.Hour.Seconds()) //nolint
 	req, err = http.NewRequest("GET", server.URL+"/authForEmployees", http.NoBody)
 	require.Nil(t, err)
@@ -527,6 +563,7 @@ var updateUsername provider.Provider = mockRefreshableProvider(func(claims token
 })
 
 func makeTestAuth(_ *testing.T) Authenticator {
+
 	j := token.NewService(token.Opts{
 		SecretReader: token.SecretFunc(func(string) (string, error) {
 			return testJWTKey, nil
@@ -542,11 +579,15 @@ func makeTestAuth(_ *testing.T) Authenticator {
 	})
 
 	return Authenticator{
-		Providers:   []provider.Service{provider.NewService(updateUsername)},
 		AdminPasswd: "123456",
 		JWTService:  j,
 		Validator:   token.ValidatorFunc(func(token string, claims token.Claims) bool { return true }),
 		L:           logger.Std,
+		Providers: []provider.Service{
+			{Provider: provider.DirectHandler{ProviderName: "provider1"}},
+			{Provider: provider.DirectHandler{ProviderName: "provider2"}},
+			{Provider: updateUsername},
+		},
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/oauth2"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -108,7 +107,7 @@ Ivx5tHkv
 -----END PRIVATE KEY-----`
 	testPrivKeyFileName := "privKeyTest.tmp"
 
-	dir, err := ioutil.TempDir(os.TempDir(), testPrivKeyFileName)
+	dir, err := os.MkdirTemp(os.TempDir(), testPrivKeyFileName)
 	assert.NoError(t, err)
 	assert.NotNil(t, dir)
 	if err != nil {
@@ -160,7 +159,7 @@ func TestIntegrationProtected(t *testing.T) {
 	assert.Equal(t, 401, resp.StatusCode)
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "Unauthorized\n", string(body))
 
 	// check non-admin, permanent
@@ -169,7 +168,7 @@ func TestIntegrationProtected(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	defer resp.Body.Close()
 	body, err = io.ReadAll(resp.Body)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("resp %s", string(body))
 	t.Logf("headers: %+v", resp.Header)
 	require.Equal(t, 2, len(resp.Cookies()))
@@ -322,10 +321,10 @@ func TestLogoutOldToken(t *testing.T) {
 	jar, err := cookiejar.New(nil)
 	require.Nil(t, err)
 
-	testUrl, err := url.Parse("http://127.0.0.1:8089")
+	testURL, err := url.Parse("http://127.0.0.1:8089")
 	require.NoError(t, err)
 
-	jar.SetCookies(testUrl, []*http.Cookie{
+	jar.SetCookies(testURL, []*http.Cookie{
 		{
 			Name:  "JWT",
 			Value: tok,
@@ -395,7 +394,7 @@ func TestDirectProvider(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("resp %s", string(body))
 	t.Logf("headers: %+v", resp.Header)
 
@@ -480,7 +479,7 @@ func TestDirectProvider_WithCustomUserIDFunc(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("resp %s", string(body))
 	t.Logf("headers: %+v", resp.Header)
 
@@ -679,6 +678,6 @@ type customHandler struct{}
 func (c customHandler) Name() string {
 	return "telegramBotMySiteCom"
 }
-func (c customHandler) LoginHandler(w http.ResponseWriter, r *http.Request)  {}
-func (c customHandler) AuthHandler(w http.ResponseWriter, r *http.Request)   {}
-func (c customHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {}
+func (c customHandler) LoginHandler(http.ResponseWriter, *http.Request)  {}
+func (c customHandler) AuthHandler(http.ResponseWriter, *http.Request)   {}
+func (c customHandler) LogoutHandler(http.ResponseWriter, *http.Request) {}
