@@ -41,12 +41,13 @@ func TestOauth2Login(t *testing.T) {
 	t.Logf("resp %s", string(body))
 	t.Logf("headers: %+v", resp.Header)
 
-	assert.Equal(t, 2, len(resp.Cookies()))
+	require.Equal(t, 3, len(resp.Cookies()), "session pair plus the retired handshake cookie")
 	assert.Equal(t, "JWT", resp.Cookies()[0].Name)
 	assert.NotEqual(t, "", resp.Cookies()[0].Value, "token set")
 	assert.Equal(t, 2678400, resp.Cookies()[0].MaxAge)
 	assert.Equal(t, "XSRF-TOKEN", resp.Cookies()[1].Name)
 	assert.NotEqual(t, "", resp.Cookies()[1].Value, "xsrf cookie set")
+	assertHandshakeRetired(t, resp.Cookies()[2])
 
 	u := token.User{}
 	err = json.Unmarshal(body, &u)
@@ -89,12 +90,13 @@ func TestOauth2LoginSessionOnly(t *testing.T) {
 	resp, err := client.Get("http://localhost:8981/login?site=remark&session=1")
 	require.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, 2, len(resp.Cookies()))
+	require.Equal(t, 3, len(resp.Cookies()), "session pair plus the retired handshake cookie")
 	assert.Equal(t, "JWT", resp.Cookies()[0].Name)
 	assert.NotEqual(t, "", resp.Cookies()[0].Value, "token set")
 	assert.Equal(t, 0, resp.Cookies()[0].MaxAge)
 	assert.Equal(t, "XSRF-TOKEN", resp.Cookies()[1].Name)
 	assert.NotEqual(t, "", resp.Cookies()[1].Value, "xsrf cookie set")
+	assertHandshakeRetired(t, resp.Cookies()[2])
 
 	req, err := http.NewRequest("GET", "http://example.com", http.NoBody)
 	require.Nil(t, err)
@@ -123,12 +125,13 @@ func TestOauth2LoginNoAva(t *testing.T) {
 	resp, err := client.Get("http://localhost:8981/login?site=remark&noava=1")
 	require.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, 2, len(resp.Cookies()))
+	require.Equal(t, 3, len(resp.Cookies()), "session pair plus the retired handshake cookie")
 	assert.Equal(t, "JWT", resp.Cookies()[0].Name)
 	assert.NotEqual(t, "", resp.Cookies()[0].Value, "token set")
 	assert.NotEqual(t, 0, resp.Cookies()[0].MaxAge)
 	assert.Equal(t, "XSRF-TOKEN", resp.Cookies()[1].Name)
 	assert.NotEqual(t, "", resp.Cookies()[1].Value, "xsrf cookie set")
+	assertHandshakeRetired(t, resp.Cookies()[2])
 
 	req, err := http.NewRequest("GET", "http://example.com", http.NoBody)
 	require.Nil(t, err)
@@ -169,11 +172,13 @@ func TestOauth2Logout(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
-	assert.Equal(t, 2, len(resp.Cookies()))
-	assert.Equal(t, "JWT", resp.Cookies()[0].Name, "token cookie cleared")
-	assert.Equal(t, "", resp.Cookies()[0].Value)
-	assert.Equal(t, "XSRF-TOKEN", resp.Cookies()[1].Name, "xsrf cookie cleared")
+	// the handshake cookie is retired first, unconditionally, then the session pair as before
+	require.Equal(t, 3, len(resp.Cookies()))
+	assertHandshakeRetired(t, resp.Cookies()[0])
+	assert.Equal(t, "JWT", resp.Cookies()[1].Name, "token cookie cleared")
 	assert.Equal(t, "", resp.Cookies()[1].Value)
+	assert.Equal(t, "XSRF-TOKEN", resp.Cookies()[2].Name, "xsrf cookie cleared")
+	assert.Equal(t, "", resp.Cookies()[2].Value)
 }
 
 func TestOauth2LogoutWithURI(t *testing.T) {
@@ -229,7 +234,7 @@ func TestOauth2InvalidHandler(t *testing.T) {
 
 	resp, err = client.Post("http://localhost:8691/login", "", nil)
 	require.Nil(t, err)
-	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, 403, resp.StatusCode, "a callback without a handshake is an expected denial, not a server fault")
 }
 
 func TestMakeRedirURL(t *testing.T) {

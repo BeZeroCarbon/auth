@@ -37,6 +37,12 @@ type TokenService interface {
 	Set(w http.ResponseWriter, claims token.Claims) (token.Claims, error)
 	Get(r *http.Request) (claims token.Claims, token string, err error)
 	Reset(w http.ResponseWriter)
+
+	// the OAuth handshake lives in its own cookie so a concurrent session refresh or reset can not
+	// destroy a login in flight, see token.Service.SetHandshake
+	SetHandshake(w http.ResponseWriter, claims token.Claims) error
+	GetHandshake(r *http.Request, state string) (claims token.Claims, err error)
+	ResetHandshake(w http.ResponseWriter)
 }
 
 // Provider defines interface for auth handler

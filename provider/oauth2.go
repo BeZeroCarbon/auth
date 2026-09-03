@@ -132,16 +132,21 @@ func (p Oauth2Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		},
 		SessionOnly: r.URL.Query().Get("session") != "" && r.URL.Query().Get("session") != "0",
 		StandardClaims: jwt.StandardClaims{
+			// no ExpiresAt: SetHandshake stamps it, so the handshake's lifetime is decided in one place
 			Id:        cid,
 			Audience:  aud,
-			ExpiresAt: time.Now().Add(30 * time.Minute).Unix(),
 			NotBefore: time.Now().Add(-1 * time.Minute).Unix(),
 		},
 		NoAva:    r.URL.Query().Get("noava") == "1",
 		Provider: p.Name(),
 	}
 
-	if _, err := p.JwtService.Set(w, claims); err != nil {
+	// SetHandshake writes the handshake to its own cookie, where a concurrent session refresh can't
+	// clobber it, and (stage 1 of the rollout) mirrors it into the session cookie as Set used to, so
+	// a login served by a new instance can still have its callback served by an old one during a
+	// rolling deploy. Both cookies get the same, once-minted token; see token.Service.SetHandshake
+	// for the TODO(stage 2) that drops the session-cookie half.
+	if err = p.JwtService.SetHandshake(w, claims); err != nil {
 		rest.SendErrorJSON(w, r, p.L, http.StatusInternalServerError, err, "failed to set token")
 		return
 	}
@@ -160,34 +165,79 @@ func (p Oauth2Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 // AuthHandler fills user info and redirects to "from" url. This is callback url redirected locally by browser
 // GET /callback
 func (p Oauth2Handler) AuthHandler(w http.ResponseWriter, r *http.Request) {
-	oauthClaims, _, err := p.JwtService.Get(r)
+	// Dual-read: GetHandshake checks both the dedicated handshake cookie and the session cookie and
+	// picks whichever holds a live handshake matching the state we were called back with. It never
+	// demands an XSRF header, which a top-level redirect back from the provider cannot carry. Every
+	// exit that consumed or condemned a handshake clears the cookie; the logout handler never runs
+	// during a callback, so this is the only place that can retire one.
+	oauthClaims, err := p.JwtService.GetHandshake(r, r.URL.Query().Get("state"))
 	if err != nil {
-		rest.SendErrorJSON(w, r, p.L, http.StatusInternalServerError, err, "failed to get token")
+		// All of these are expected denials on a public endpoint: stale tabs, abandoned logins and
+		// hostile probes land here routinely, hence 403 rather than 500.
+		//
+		// Clearing the cookie is the dangerous half of this switch, so only a candidate that was
+		// actually examined and condemned earns it. Anything else would let an unauthenticated
+		// cross-site request destroy a login in flight.
+		//
+		// The arm order is load-bearing: GetHandshake joins the verdicts of both candidates, so
+		// several sentinels can be present at once (a logged-in user with a live handshake in the
+		// dedicated cookie and an ordinary session token in the session cookie yields
+		// StateMismatch+Invalid). Arms are therefore ordered least-destructive first, so the
+		// don't-clear verdict wins over a clear verdict on the other cookie.
+		switch {
+		case errors.Is(err, token.ErrHandshakeStateMismatch):
+			// deliberately NOT cleared: the cookie is a single slot, and a live handshake that
+			// doesn't match this callback belongs to another login the user has in flight (two tabs,
+			// a double-click). Clearing here would kill that one. It retires itself via exp/MaxAge.
+			rest.SendErrorJSON(w, r, p.L, http.StatusForbidden, err, "unexpected state")
+		case errors.Is(err, token.ErrHandshakeExpired):
+			p.JwtService.ResetHandshake(w)
+			rest.SendErrorJSON(w, r, p.L, http.StatusForbidden, err, "expired handshake token")
+		case errors.Is(err, token.ErrHandshakeInvalid):
+			// a cookie was presented and holds nothing usable (unparsable, tampered, or a session
+			// token that clobbered the handshake): dead weight, safe to bin
+			p.JwtService.ResetHandshake(w)
+			rest.SendErrorJSON(w, r, p.L, http.StatusForbidden, err, "invalid handshake token")
+		default:
+			// token.ErrNoHandshake: no candidate was examined, either no state on the request or no
+			// cookie presented. Neither says the browser has nothing to lose. GetHandshake
+			// short-circuits on an empty state before it reads any cookie, so a bare GET /callback,
+			// which anyone can make a victim's browser issue as a top-level navigation and which does
+			// carry the SameSite=Lax handshake cookie, lands here while a login is in flight; clearing
+			// would kill it. A request that presented no cookie tells us just as little: it may simply
+			// not have been sent. So this arm must not clear.
+			rest.SendErrorJSON(w, r, p.L, http.StatusForbidden, err, "no handshake token")
+		}
 		return
 	}
 
-	if oauthClaims.Handshake == nil {
-		rest.SendErrorJSON(w, r, p.L, http.StatusForbidden, nil, "invalid handshake token")
-		return
-	}
-
-	retrievedState := oauthClaims.Handshake.State
-	if retrievedState == "" || retrievedState != r.URL.Query().Get("state") {
-		rest.SendErrorJSON(w, r, p.L, http.StatusForbidden, nil, "unexpected state")
+	// a handshake minted at another provider's /login must not be redeemable here. The code exchange
+	// would fail anyway against a different client_id, but that surfaces as a confusing 500 and this
+	// is the CSRF boundary. Empty is tolerated: nothing but LoginHandler mints handshakes, and it has
+	// always set the claim, but a hand-rolled fixture may not.
+	//
+	// Not cleared, for the same reason a state mismatch is not: the handshake is live and it is the
+	// user's, it just belongs to a login started at another provider, which may still complete at its
+	// own callback. Only its exp retires it.
+	if oauthClaims.Provider != "" && oauthClaims.Provider != p.Name() {
+		rest.SendErrorJSON(w, r, p.L, http.StatusForbidden,
+			fmt.Errorf("handshake issued for provider %q", oauthClaims.Provider), "unexpected provider")
 		return
 	}
 
 	p.conf.RedirectURL = p.makeRedirURL(r.URL.Path)
 
-	p.Logf("[DEBUG] token with state %s", retrievedState)
+	p.Logf("[DEBUG] token with state %s", oauthClaims.Handshake.State)
 	tok, err := p.conf.Exchange(context.Background(), r.URL.Query().Get("code"))
 	if err != nil {
+		p.JwtService.ResetHandshake(w)
 		rest.SendErrorJSON(w, r, p.L, http.StatusInternalServerError, err, "exchange failed")
 		return
 	}
 
 	claims, err := p.loadUser(tok, oauthClaims)
 	if err != nil {
+		p.JwtService.ResetHandshake(w)
 		rest.SendErrorJSON(w, r, p.L, http.StatusInternalServerError, err, "failed to load user")
 		return
 	}
@@ -201,14 +251,20 @@ func (p Oauth2Handler) AuthHandler(w http.ResponseWriter, r *http.Request) {
 	claims.User = &userWithAva
 
 	if _, err = p.JwtService.Set(w, claims); err != nil {
+		p.JwtService.ResetHandshake(w)
 		rest.SendErrorJSON(w, r, p.L, http.StatusInternalServerError, err, "failed to set token")
 		return
 	}
 
+	// handshake consumed, retire its cookie. Written after Set so the session cookies keep their
+	// position in the response, which the existing tests assert on by index.
+	p.JwtService.ResetHandshake(w)
+
 	p.Logf("[DEBUG] user info %+v", claims.User)
 
-	// redirect to back url if presented in login query params
-	if oauthClaims.Handshake != nil && oauthClaims.Handshake.From != "" {
+	// redirect to back url if presented in login query params. GetHandshake only ever returns claims
+	// with a non-nil Handshake
+	if oauthClaims.Handshake.From != "" {
 		http.Redirect(w, r, oauthClaims.Handshake.From, http.StatusTemporaryRedirect)
 		return
 	}
@@ -217,6 +273,11 @@ func (p Oauth2Handler) AuthHandler(w http.ResponseWriter, r *http.Request) {
 
 // LogoutHandler - GET /logout
 func (p Oauth2Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	// unconditionally, and before the Get check below: that check returns early with 403 whenever the
+	// session cookie is missing or unreadable, which is exactly when a user is trying to log out of a
+	// broken session and we would otherwise strand the handshake cookie in their browser.
+	p.JwtService.ResetHandshake(w)
+
 	if _, _, err := p.JwtService.Get(r); err != nil {
 		rest.SendErrorJSON(w, r, p.L, http.StatusForbidden, err, "logout not allowed")
 		return

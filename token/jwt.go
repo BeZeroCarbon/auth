@@ -3,6 +3,7 @@ package token
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -48,6 +49,45 @@ const (
 	defaultCookieDuration = time.Hour * 24 * 31
 
 	defaultTokenQuery = "token"
+
+	// handshakeCookieSuffix is appended to JWTCookieName to derive the name of the dedicated OAuth
+	// handshake cookie (e.g. "rp-token" -> "rp-token-oauth-state"). Deriving it keeps the name out of
+	// Opts: there is nothing to tune, and a config knob would need plumbing through every consumer
+	// for no benefit.
+	handshakeCookieSuffix = "-oauth-state"
+)
+
+// handshakeDuration is the lifetime of an OAuth handshake: both the exp claim on the handshake
+// token and the MaxAge of the cookie carrying it. SetHandshake stamps both from it, so there is one
+// place that decides how long a login may take.
+//
+// It is an hour rather than the 30 minutes LoginHandler used to set because that value was never
+// enforced: AuthHandler read the handshake through Get, which skips the expiry check for
+// cookie-sourced tokens, so a callback arriving long after login still completed. GetHandshake does
+// enforce it (a signed handshake would otherwise be replayable indefinitely), which makes the TTL
+// user-visible for the first time: it has to outlast whatever the user does on the identity
+// provider's hosted UI (MFA enrolment, a forced password change, a password reset) before the
+// callback comes back.
+const handshakeDuration = time.Hour
+
+// Errors returned by GetHandshake. They are sentinels so the OAuth callback can map a rejection to a
+// response without string matching; all of them are expected, public-endpoint denials.
+//
+// The split between ErrNoHandshake and the other three is what tells the callback whether it may
+// clear the handshake cookie: only a candidate that was examined and condemned justifies that.
+// ErrNoHandshake means nothing was examined at all, and a request that presented no candidate must
+// never be able to destroy a login in flight, because /callback is public and unauthenticated.
+var (
+	// ErrNoHandshake means no candidate was even examined: the callback carried no state, or neither
+	// cookie was presented
+	ErrNoHandshake = fmt.Errorf("no handshake token")
+	// ErrHandshakeInvalid means a cookie was presented but held nothing usable: it did not parse, its
+	// signature was rejected, or it is a token of another kind (a user session)
+	ErrHandshakeInvalid = fmt.Errorf("invalid handshake token")
+	// ErrHandshakeExpired means a handshake token was found but has expired
+	ErrHandshakeExpired = fmt.Errorf("handshake expired")
+	// ErrHandshakeStateMismatch means a live handshake token was found but its state does not match
+	ErrHandshakeStateMismatch = fmt.Errorf("handshake state mismatch")
 )
 
 // Opts holds constructor params
@@ -215,8 +255,22 @@ func (j *Service) validate(claims *Claims) error {
 // accepts claims and sets expiration if none defined. permanent flag means long-living cookie,
 // false makes it session only.
 func (j *Service) Set(w http.ResponseWriter, claims Claims) (Claims, error) {
+	claims = j.withDefaults(claims, j.TokenDuration)
+
+	tokenString, err := j.Token(claims)
+	if err != nil {
+		return Claims{}, fmt.Errorf("failed to make token token: %w", err)
+	}
+
+	j.writeSession(w, tokenString, claims)
+	return claims, nil
+}
+
+// withDefaults fills in the claim fields the setters default when the caller left them unset.
+// Split out of Set so SetHandshake applies exactly the same rules with its own duration.
+func (j *Service) withDefaults(claims Claims, duration time.Duration) Claims {
 	if claims.ExpiresAt == 0 {
-		claims.ExpiresAt = time.Now().Add(j.TokenDuration).Unix()
+		claims.ExpiresAt = time.Now().Add(duration).Unix()
 	}
 
 	if claims.Issuer == "" {
@@ -227,14 +281,16 @@ func (j *Service) Set(w http.ResponseWriter, claims Claims) (Claims, error) {
 		claims.IssuedAt = time.Now().Unix()
 	}
 
-	tokenString, err := j.Token(claims)
-	if err != nil {
-		return Claims{}, fmt.Errorf("failed to make token token: %w", err)
-	}
+	return claims
+}
 
+// writeSession sends an already-signed token to the client as the session cookie pair, or as the
+// JWT header when SendJWTHeader is set. Split out of Set so the handshake dual-write can reuse it
+// with the very same token string instead of re-signing the claims.
+func (j *Service) writeSession(w http.ResponseWriter, tokenString string, claims Claims) {
 	if j.SendJWTHeader {
 		w.Header().Set(j.JWTHeaderKey, tokenString)
-		return claims, nil
+		return
 	}
 
 	cookieExpiration := 0 // session cookie
@@ -242,6 +298,8 @@ func (j *Service) Set(w http.ResponseWriter, claims Claims) (Claims, error) {
 		cookieExpiration = int(j.CookieDuration.Seconds())
 	}
 
+	// note: HttpOnly is deliberately true here and false in Reset. That asymmetry comes from
+	// upstream; it looks like a bug but "fixing" it changes emitted headers, so it is pinned by test.
 	jwtCookie := http.Cookie{Name: j.JWTCookieName, Value: tokenString, HttpOnly: true, Path: "/", Domain: j.JWTCookieDomain,
 		MaxAge: cookieExpiration, Secure: j.SecureCookies, SameSite: j.SameSite}
 	http.SetCookie(w, &jwtCookie)
@@ -249,8 +307,6 @@ func (j *Service) Set(w http.ResponseWriter, claims Claims) (Claims, error) {
 	xsrfCookie := http.Cookie{Name: j.XSRFCookieName, Value: claims.Id, HttpOnly: false, Path: "/", Domain: j.JWTCookieDomain,
 		MaxAge: cookieExpiration, Secure: j.SecureCookies, SameSite: j.SameSite}
 	http.SetCookie(w, &xsrfCookie)
-
-	return claims, nil
 }
 
 // Get token from url, header or cookie
@@ -322,6 +378,156 @@ func (j *Service) Reset(w http.ResponseWriter) {
 	xsrfCookie := http.Cookie{Name: j.XSRFCookieName, Value: "", HttpOnly: false, Path: "/", Domain: j.JWTCookieDomain,
 		MaxAge: -1, Expires: time.Unix(0, 0), Secure: j.SecureCookies, SameSite: j.SameSite}
 	http.SetCookie(w, &xsrfCookie)
+}
+
+// handshakeCookieName returns the name of the dedicated OAuth handshake cookie. It is derived from
+// JWTCookieName rather than configured, see handshakeCookieSuffix.
+func (j *Service) handshakeCookieName() string {
+	return j.JWTCookieName + handshakeCookieSuffix
+}
+
+// SetHandshake writes the OAuth handshake token to its own dedicated cookie and, for stage 1 of the
+// rollout only, mirrors it into the session cookie exactly as LoginHandler used to via Set.
+//
+// The dedicated cookie exists so a concurrent request refreshing (Set) or clearing (Reset) the
+// session cookie can no longer destroy an in-flight login handshake. Neither Set nor Reset ever
+// touch it; only SetHandshake and ResetHandshake do.
+//
+// Both cookies carry the same token: it is minted once here rather than by a Set call followed by a
+// SetHandshake call, so ClaimsUpd fires once per login, and so a signing failure cannot leave the
+// session cookie replaced while the handshake cookie is missing.
+//
+// SameSite on the dedicated cookie is Lax, a deliberate divergence from the session cookie's
+// configurable SameSite: the callback arrives as a cross-site top-level redirect from the identity
+// provider, and a Strict cookie would not be sent with it.
+//
+// TODO(stage 2): drop the writeSession call below once every consumer has run this version for a
+// full CookieDuration, leaving only the dedicated cookie.
+func (j *Service) SetHandshake(w http.ResponseWriter, claims Claims) error {
+	if claims.Handshake == nil {
+		return fmt.Errorf("not a handshake token")
+	}
+
+	// stamped, not defaulted: the handshake's lifetime is not the caller's to choose. withDefaults
+	// only fills exp in when it is unset, so a caller presetting a longer one would get a token
+	// outliving the cookie carrying it, and GetHandshake trusts exp, not the cookie's MaxAge, so
+	// that token would stay redeemable by anyone who kept a copy. exp is therefore already set by the
+	// time withDefaults runs, which is why it is passed no duration: it only fills in iss and iat here.
+	claims.ExpiresAt = time.Now().Add(handshakeDuration).Unix()
+	claims = j.withDefaults(claims, 0)
+
+	tokenString, err := j.Token(claims)
+	if err != nil {
+		return fmt.Errorf("failed to make handshake token: %w", err)
+	}
+
+	// session cookies first, so the Set-Cookie order a login emits is unchanged
+	j.writeSession(w, tokenString, claims)
+
+	http.SetCookie(w, &http.Cookie{Name: j.handshakeCookieName(), Value: tokenString, HttpOnly: true,
+		Path: "/", Domain: j.JWTCookieDomain, MaxAge: int(handshakeDuration.Seconds()),
+		Secure: j.SecureCookies, SameSite: http.SameSiteLaxMode})
+
+	return nil
+}
+
+// GetHandshake returns the handshake claims matching the given oauth2 state.
+//
+// It reads both the dedicated handshake cookie and the session cookie, because during the staged
+// rollout the login handler dual-writes the handshake to both: a login served by a new instance may
+// have its callback served by an old one, and vice versa. Selection is by state match, never by
+// "first cookie present", otherwise a stale handshake left in the dedicated cookie by an abandoned
+// login would mask a valid one in the session cookie.
+//
+// TODO(stage 2): read only handshakeCookieName() once the rollout has drained.
+//
+// Expiry is enforced here, before state selection: Parse deliberately tolerates expired tokens (see
+// validate) and a cookie MaxAge is only a client-side hint, so without this check a retained or
+// replayed signed handshake would stay usable forever.
+//
+// Unlike Get, no XSRF header is ever demanded: the callback is a top-level redirect back from the
+// identity provider and cannot carry one.
+//
+// Every rejection is reported with the sentinel that says what happened to each candidate, joined
+// across the two cookies so errors.Is matches any of them. ErrNoHandshake specifically means
+// "nothing was examined", which is what stops a callback carrying no state, or no cookies at all,
+// from clearing a live handshake.
+func (j *Service) GetHandshake(r *http.Request, state string) (Claims, error) {
+	if state == "" {
+		return Claims{}, fmt.Errorf("%w: empty state", ErrNoHandshake)
+	}
+
+	var errs handshakeErrors
+	for _, name := range []string{j.handshakeCookieName(), j.JWTCookieName} {
+		c, err := r.Cookie(name)
+		if err != nil || c.Value == "" {
+			errs = append(errs, fmt.Errorf("%w: %s cookie was not presented", ErrNoHandshake, name))
+			continue
+		}
+
+		claims, err := j.Parse(c.Value)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%w: %s: %v", ErrHandshakeInvalid, name, err))
+			continue
+		}
+
+		if claims.Handshake == nil || claims.Handshake.State == "" {
+			errs = append(errs, fmt.Errorf("%w: %s does not hold a handshake", ErrHandshakeInvalid, name))
+			continue
+		}
+
+		if j.IsExpired(claims) {
+			errs = append(errs, fmt.Errorf("%w: %s", ErrHandshakeExpired, name))
+			continue
+		}
+
+		if claims.Handshake.State != state {
+			errs = append(errs, fmt.Errorf("%w: %s", ErrHandshakeStateMismatch, name))
+			continue
+		}
+
+		return claims, nil
+	}
+
+	return Claims{}, errs
+}
+
+// handshakeErrors is the per-candidate verdict list GetHandshake returns. It is a hand-rolled join
+// rather than errors.Join because this module still declares go 1.17; errors.Is reaches every
+// member through Is, and Unwrap exposes them to callers on newer toolchains.
+type handshakeErrors []error
+
+func (e handshakeErrors) Error() string {
+	msgs := make([]string, 0, len(e))
+	for _, err := range e {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// Is reports whether any of the joined verdicts matches target
+func (e handshakeErrors) Is(target error) bool {
+	for _, err := range e {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+	return false
+}
+
+// Unwrap returns the joined verdicts, the multi-error convention Go 1.20+ understands
+func (e handshakeErrors) Unwrap() []error { return e }
+
+// ResetHandshake clears the dedicated OAuth handshake cookie.
+//
+// Kept separate from Reset on purpose: Reset is not logout-specific, the auth middleware also calls
+// it on validator rejection and on refresh failure. Folding the handshake into Reset would let a
+// concurrent failing request delete an in-flight login, the same cross-request coupling this
+// cookie exists to remove.
+func (j *Service) ResetHandshake(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{Name: j.handshakeCookieName(), Value: "", HttpOnly: true, Path: "/",
+		Domain: j.JWTCookieDomain, MaxAge: -1, Expires: time.Unix(0, 0), Secure: j.SecureCookies,
+		SameSite: http.SameSiteLaxMode})
 }
 
 // checkAuds verifies if claims.Audience in the list of allowed by audReader
