@@ -416,7 +416,7 @@ func TestDirectProvider(t *testing.T) {
 }
 
 func TestDevOpenIDProvider(t *testing.T) {
-	service := NewService(Opts{Logger: logger.Std, SecretReader: token.SecretFunc(func(aud string) (string, error) {
+	service := NewService(Opts{Logger: logger.Std, SecretReader: token.SecretFunc(func(_ string) (string, error) {
 		return "secret", nil
 	})})
 	service.AddDevOpenIDProvider(18089)
@@ -451,7 +451,7 @@ func TestDevOpenIDProvider(t *testing.T) {
 		},
 		InfoURL: "http://localhost:18089/user",
 		JwksURL: "http://localhost:18089/jwks",
-		MapUserFn: func(data provider.UserData, bytes []byte) token.User {
+		MapUserFn: func(data provider.UserData, _ []byte) token.User {
 			return token.User{
 				Name: data.Value("sub"),
 			}
@@ -614,7 +614,7 @@ func prepService(t *testing.T) (svc *Service, teardown func()) { //nolint unpara
 		provider.CredCheckerFunc(func(user, password string) (ok bool, err error) {
 			return user == "dev_direct" && password == "password", nil
 		}),
-		func(user string, r *http.Request) string {
+		func(_ string, _ *http.Request) string {
 			return "blah"
 		},
 	)

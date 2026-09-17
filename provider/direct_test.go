@@ -109,7 +109,7 @@ func TestDirect_LoginHandlerCustomUserID(t *testing.T) {
 		}),
 		Issuer: "iss-test",
 		L:      logger.Std,
-		UserIDFunc: func(user string, r *http.Request) string {
+		UserIDFunc: func(user string, _ *http.Request) string {
 			return user + "_custom_id"
 		},
 	}

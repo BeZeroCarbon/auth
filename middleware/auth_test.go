@@ -306,7 +306,7 @@ func TestAuthJWTRefreshFailed(t *testing.T) {
 
 func TestAuthJWtBlocked(t *testing.T) {
 	a := makeTestAuth(t)
-	a.Validator = token.ValidatorFunc(func(token string, claims token.Claims) bool { return false })
+	a.Validator = token.ValidatorFunc(func(_ string, _ token.Claims) bool { return false })
 	server := httptest.NewServer(makeTestMux(t, &a, true))
 	defer server.Close()
 
@@ -433,7 +433,7 @@ func TestAuthNotRequired(t *testing.T) {
 func TestAdminRequired(t *testing.T) {
 	a := makeTestAuth(t)
 	mux := http.NewServeMux()
-	handler := func(w http.ResponseWriter, r *http.Request) {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(201)
 	}
 	mux.Handle("/auth", a.AdminOnly(http.HandlerFunc(handler)))
@@ -537,7 +537,7 @@ func makeTestMux(_ *testing.T, a *Authenticator, required bool) http.Handler {
 	if !required {
 		authMiddleware = a.Trace
 	}
-	handler := func(w http.ResponseWriter, r *http.Request) {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(201)
 	}
 	mux.Handle("/auth", authMiddleware(http.HandlerFunc(handler)))
@@ -581,7 +581,7 @@ func makeTestAuth(_ *testing.T) Authenticator {
 	return Authenticator{
 		AdminPasswd: "123456",
 		JWTService:  j,
-		Validator:   token.ValidatorFunc(func(token string, claims token.Claims) bool { return true }),
+		Validator:   token.ValidatorFunc(func(_ string, _ token.Claims) bool { return true }),
 		L:           logger.Std,
 		Providers: []provider.Service{
 			{Provider: provider.DirectHandler{ProviderName: "provider1"}},

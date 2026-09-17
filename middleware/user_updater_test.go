@@ -47,7 +47,7 @@ func TestUserUpdate(t *testing.T) {
 func TestUserUpdate_WithoutAuth(t *testing.T) {
 	a := makeTestAuth(t)
 	mux := http.NewServeMux()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(201)
 	})
 	upd := UserUpdFunc(func(user token.User) token.User {

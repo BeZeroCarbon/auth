@@ -193,7 +193,7 @@ func initGoauth2Srv(t *testing.T) *goauth2.Server {
 
 	srv := goauth2.NewServer(goauth2.NewConfig(), manager)
 
-	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (string, error) {
+	srv.SetUserAuthorizationHandler(func(_ http.ResponseWriter, r *http.Request) (string, error) {
 		if r.ParseForm() != nil {
 			return "", fmt.Errorf("no username and password in request")
 		}

@@ -534,7 +534,7 @@ func TestJWT_Reset(t *testing.T) {
 }
 
 func TestJWT_Validator(t *testing.T) {
-	ch := ValidatorFunc(func(token string, claims Claims) bool {
+	ch := ValidatorFunc(func(token string, _ Claims) bool {
 		return token == "good"
 	})
 	assert.True(t, ch.Validate("good", Claims{}))

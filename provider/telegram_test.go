@@ -18,7 +18,7 @@ import (
 )
 
 // same across all tests
-var botInfoFunc = func(ctx context.Context) (*botInfo, error) {
+var botInfoFunc = func(_ context.Context) (*botInfo, error) {
 	return &botInfo{Username: "my_auth_bot"}, nil
 }
 
@@ -41,7 +41,7 @@ func TestTgLoginHandlerErrors(t *testing.T) {
 
 func TestTelegramUnconfirmedRequest(t *testing.T) {
 	m := &TelegramAPIMock{
-		GetUpdatesFunc: func(ctx context.Context) (*telegramUpdate, error) {
+		GetUpdatesFunc: func(_ context.Context) (*telegramUpdate, error) {
 			return &telegramUpdate{}, nil
 		},
 		BotInfoFunc: botInfoFunc,
@@ -92,7 +92,7 @@ func TestTelegramConfirmedRequest(t *testing.T) {
 	var mu sync.Mutex
 
 	m := &TelegramAPIMock{
-		GetUpdatesFunc: func(ctx context.Context) (*telegramUpdate, error) {
+		GetUpdatesFunc: func(_ context.Context) (*telegramUpdate, error) {
 			var upd telegramUpdate
 
 			mu.Lock()
@@ -107,11 +107,11 @@ func TestTelegramConfirmedRequest(t *testing.T) {
 			}
 			return &upd, nil
 		},
-		AvatarFunc: func(ctx context.Context, userID int) (string, error) {
+		AvatarFunc: func(_ context.Context, userID int) (string, error) {
 			assert.Equal(t, 313131313, userID)
 			return "http://t.me/avatar.png", nil
 		},
-		SendFunc: func(ctx context.Context, id int, text string) error {
+		SendFunc: func(_ context.Context, id int, text string) error {
 			assert.Equal(t, 313131313, id)
 			assert.Equal(t, "success", text)
 			return nil
@@ -173,7 +173,7 @@ func TestTelegramConfirmedRequest(t *testing.T) {
 
 func TestTelegramLogout(t *testing.T) {
 	m := &TelegramAPIMock{
-		GetUpdatesFunc: func(ctx context.Context) (*telegramUpdate, error) {
+		GetUpdatesFunc: func(_ context.Context) (*telegramUpdate, error) {
 			return &telegramUpdate{}, nil
 		},
 		BotInfoFunc: botInfoFunc,
@@ -209,14 +209,14 @@ func TestTelegramHandler_Name(t *testing.T) {
 
 func TestTelegram_ProcessUpdateFlow(t *testing.T) {
 	m := &TelegramAPIMock{
-		GetUpdatesFunc: func(ctx context.Context) (*telegramUpdate, error) {
+		GetUpdatesFunc: func(_ context.Context) (*telegramUpdate, error) {
 			return &telegramUpdate{}, nil
 		},
-		SendFunc: func(ctx context.Context, id int, text string) error {
+		SendFunc: func(_ context.Context, id int, _ string) error {
 			assert.Equal(t, 313131313, id)
 			return nil
 		},
-		AvatarFunc: func(ctx context.Context, userID int) (string, error) {
+		AvatarFunc: func(_ context.Context, userID int) (string, error) {
 			assert.Equal(t, 313131313, userID)
 			return "http://t.me/avatar.png", nil
 		},
@@ -284,7 +284,7 @@ func TestTelegram_ProcessUpdateFlow(t *testing.T) {
 
 func TestTelegram_TokenVerification(t *testing.T) {
 	m := &TelegramAPIMock{
-		GetUpdatesFunc: func(ctx context.Context) (*telegramUpdate, error) {
+		GetUpdatesFunc: func(_ context.Context) (*telegramUpdate, error) {
 			return &telegramUpdate{}, nil
 		},
 		BotInfoFunc: botInfoFunc,
@@ -531,7 +531,7 @@ func TestTgAPI_Avatar(t *testing.T) {
 const errorResp = `{"ok":false,"error_code":400,"description":"Very bad request"}`
 
 func TestTgAPI_Error(t *testing.T) {
-	tg, cleanup := prepareTgAPI(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	tg, cleanup := prepareTgAPI(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(errorResp))
 	}))

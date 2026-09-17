@@ -397,7 +397,7 @@ func prepOauth2TestWithConfig(t *testing.T, loginPort, authPort int, btHook Bear
 	ts := &http.Server{Addr: fmt.Sprintf(":%d", loginPort), Handler: http.HandlerFunc(svc.Handler)} //nolint:gosec
 
 	count := 0
-	useIds := []string{"myuser1", "myuser2"} // user for first and second calls
+	useIDs := []string{"myuser1", "myuser2"} // user for first and second calls
 
 	oauth := &http.Server{ //nolint:gosec
 		Addr: fmt.Sprintf(":%d", authPort),
@@ -427,7 +427,7 @@ func prepOauth2TestWithConfig(t *testing.T, loginPort, authPort int, btHook Bear
 					"id": "%s",
 					"name":"blah",
 					"picture":"http://exmple.com/pic1.png"
-					}`, useIds[count])
+					}`, useIDs[count])
 				count++
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 				w.WriteHeader(200)
