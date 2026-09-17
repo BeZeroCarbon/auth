@@ -373,8 +373,10 @@ func setupHandler(t *testing.T, m TelegramAPI) (tg *TelegramHandler, cleanup fun
 
 	assert.Equal(t, "telegram", tg.Name())
 
-	ctx, cleanup := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		err := tg.Run(ctx)
 		if err != context.Canceled {
 			t.Errorf("Unexpected error: %v", err)
@@ -382,6 +384,12 @@ func setupHandler(t *testing.T, m TelegramAPI) (tg *TelegramHandler, cleanup fun
 	}()
 	time.Sleep(20 * time.Millisecond)
 
+	// cleanup must wait for Run to return: the polling goroutine calls the mock's callbacks, which
+	// assert on t, and an assertion after the test has completed panics the whole test binary
+	cleanup = func() {
+		cancel()
+		<-done
+	}
 	return tg, cleanup
 }
 
