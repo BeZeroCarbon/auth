@@ -491,7 +491,7 @@ func prepareAppleOauthTest(t *testing.T, loginPort, authPort int, testToken *str
 	ts := &http.Server{Addr: fmt.Sprintf(":%d", loginPort), Handler: http.HandlerFunc(svc.Handler)} //nolint:gosec
 
 	count := 0
-	useIds := []string{"myuser1", "myuser2"} // user for first ans second calls
+	useIDs := []string{"myuser1", "myuser2"} // user for first ans second calls
 
 	oauth := &http.Server{ //nolint:gosec
 		Addr: fmt.Sprintf(":%d", authPort),
@@ -542,7 +542,7 @@ func prepareAppleOauthTest(t *testing.T, loginPort, authPort int, testToken *str
 					"id": "%s",
 					"name":"blah",
 					"picture":"http://exmple.com/pic1.png"
-					}`, useIds[count])
+					}`, useIDs[count])
 				count++
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 				w.WriteHeader(200)
@@ -660,7 +660,7 @@ ODIRe1AuTyHceAbewn8b462yEWKARdpd9AjQW5SIVPfdsz5B6GlYQ5LdYKtznTuy
 
 	// convert exponent
 	eBuff := make([]byte, 4)
-	binary.LittleEndian.PutUint32(eBuff, uint32(publicKey.E))
+	binary.LittleEndian.PutUint32(eBuff, uint32(publicKey.E)) //nolint:gosec // test RSA key, exponent is 65537
 	e := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(eBuff)
 
 	JWK := struct {

@@ -129,7 +129,7 @@ func (a *Authenticator) auth(reqAuth bool) func(http.Handler) http.Handler {
 				}
 
 				// check if user provider is allowed
-				if !a.isProviderAllowed(claims.User.ID) {
+				if !a.isProviderAllowed(claims) {
 					onError(h, w, r, fmt.Errorf("user %s/%s provider is not allowed", claims.User.Name, claims.User.ID))
 					a.JWTService.Reset(w)
 					return
@@ -153,11 +153,21 @@ func (a *Authenticator) auth(reqAuth bool) func(http.Handler) http.Handler {
 	return f
 }
 
-// isProviderAllowed checks if user provider is allowed, user id looks like "provider_1234567890"
-// this check is needed to reject users from providers what are used to be allowed but not anymore.
-// Such users made token before the provider was disabled and should not be allowed to login anymore.
-func (a *Authenticator) isProviderAllowed(userID string) bool {
-	userProvider := strings.Split(userID, "_")[0]
+// isProviderAllowed checks if the provider that issued the user's token is still registered.
+// This check is needed to reject users from providers that used to be allowed but are not anymore:
+// such users made their token before the provider was disabled and should not stay logged in.
+//
+// The provider name is taken from the token's own "prov" claim, which every login handler sets.
+// Upstream go-pkgz/auth derives it from the user ID instead, assuming the "provider_1234567890"
+// shape its built-in providers produce; that assumption does not hold for a custom provider whose
+// mapUser keeps the identity provider's native subject (BCM's users are raw Cognito subs, with no
+// prefix at all), and it would log every such user out. The ID prefix is kept only as a fallback
+// for tokens minted before the claim existed.
+func (a *Authenticator) isProviderAllowed(claims token.Claims) bool {
+	userProvider := claims.Provider
+	if userProvider == "" {
+		userProvider = strings.Split(claims.User.ID, "_")[0]
+	}
 	for _, p := range a.Providers {
 		if p.Name() == userProvider {
 			return true

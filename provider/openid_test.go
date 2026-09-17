@@ -23,7 +23,7 @@ func TestNewOpenID(t *testing.T) {
 
 	expectedTestUserSub := fmt.Sprintf("test-user-%d", devPort)
 	svc := auth.NewService(auth.Opts{
-		SecretReader: token.SecretFunc(func(aud string) (string, error) {
+		SecretReader: token.SecretFunc(func(_ string) (string, error) {
 			return "some-signing-key", nil
 		}),
 		Logger:      logger.Std,

@@ -171,12 +171,14 @@ func TestIntegrationProtected(t *testing.T) {
 	assert.NoError(t, err)
 	t.Logf("resp %s", string(body))
 	t.Logf("headers: %+v", resp.Header)
-	require.Equal(t, 2, len(resp.Cookies()))
+	require.Equal(t, 3, len(resp.Cookies()), "session pair plus the retired handshake cookie")
 	assert.Equal(t, "JWT", resp.Cookies()[0].Name)
 	assert.NotEqual(t, "", resp.Cookies()[0].Value, "token set")
 	assert.Equal(t, 86400, resp.Cookies()[0].MaxAge)
 	assert.Equal(t, "XSRF-TOKEN", resp.Cookies()[1].Name)
 	assert.NotEqual(t, "", resp.Cookies()[1].Value, "xsrf cookie set")
+	assert.Equal(t, "JWT-oauth-state", resp.Cookies()[2].Name, "handshake cookie retired by the callback")
+	assert.Equal(t, "", resp.Cookies()[2].Value)
 
 	resp, err = client.Get("http://127.0.0.1:8089/private")
 	require.Nil(t, err)
@@ -414,7 +416,7 @@ func TestDirectProvider(t *testing.T) {
 }
 
 func TestDevOpenIDProvider(t *testing.T) {
-	service := NewService(Opts{Logger: logger.Std, SecretReader: token.SecretFunc(func(aud string) (string, error) {
+	service := NewService(Opts{Logger: logger.Std, SecretReader: token.SecretFunc(func(_ string) (string, error) {
 		return "secret", nil
 	})})
 	service.AddDevOpenIDProvider(18089)
@@ -449,7 +451,7 @@ func TestDevOpenIDProvider(t *testing.T) {
 		},
 		InfoURL: "http://localhost:18089/user",
 		JwksURL: "http://localhost:18089/jwks",
-		MapUserFn: func(data provider.UserData, bytes []byte) token.User {
+		MapUserFn: func(data provider.UserData, _ []byte) token.User {
 			return token.User{
 				Name: data.Value("sub"),
 			}
@@ -612,7 +614,7 @@ func prepService(t *testing.T) (svc *Service, teardown func()) { //nolint unpara
 		provider.CredCheckerFunc(func(user, password string) (ok bool, err error) {
 			return user == "dev_direct" && password == "password", nil
 		}),
-		func(user string, r *http.Request) string {
+		func(_ string, _ *http.Request) string {
 			return "blah"
 		},
 	)
