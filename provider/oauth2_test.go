@@ -256,8 +256,8 @@ func TestOauth2LogoutWithURI(t *testing.T) {
 
 func TestOauth2InitProvider(t *testing.T) {
 	params := Params{URL: "url", Cid: "cid", Csecret: "csecret", Issuer: "app-test"}
-	provider := Oauth2Handler{name: "test"}
-	res := initOauth2Handler(params, provider)
+	h := Oauth2Handler{name: "test"}
+	res := initOauth2Handler(params, h)
 	assert.Equal(t, "cid", res.conf.ClientID)
 	assert.Equal(t, "csecret", res.conf.ClientSecret)
 	assert.Equal(t, "test", res.name)

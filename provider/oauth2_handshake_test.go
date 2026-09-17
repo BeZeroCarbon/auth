@@ -305,7 +305,7 @@ func TestOauth2CallbackHandshakeRejections(t *testing.T) {
 }
 
 // TestOauth2CallbackExpiredHandshakeSentDirectly pins the server-side expiry check end to end. The
-// cookie is handed to the handler directly rather than through a cookie jar: a jar would honour the
+// cookie is handed to the handler directly rather than through a cookie jar: a jar would respect the
 // MaxAge and drop it, and the test would pass without the check existing.
 func TestOauth2CallbackExpiredHandshakeSentDirectly(t *testing.T) {
 	teardown := prepOauth2Test(t, 8981, 8982, nil)

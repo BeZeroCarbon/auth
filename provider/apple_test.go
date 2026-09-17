@@ -660,7 +660,7 @@ ODIRe1AuTyHceAbewn8b462yEWKARdpd9AjQW5SIVPfdsz5B6GlYQ5LdYKtznTuy
 
 	// convert exponent
 	eBuff := make([]byte, 4)
-	binary.LittleEndian.PutUint32(eBuff, uint32(publicKey.E))
+	binary.LittleEndian.PutUint32(eBuff, uint32(publicKey.E)) //nolint:gosec // test RSA key, exponent is 65537
 	e := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(eBuff)
 
 	JWK := struct {
