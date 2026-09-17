@@ -99,6 +99,9 @@ func TestTelegramConfirmedRequest(t *testing.T) {
 			defer mu.Unlock()
 			if servedToken != "" {
 				resp := fmt.Sprintf(getUpdatesResp, servedToken)
+				// serve the confirmation once: a later poll would find the request already consumed
+				// by the test's login call and make the handler send ErrorMsg, failing SendFunc's assert
+				servedToken = ""
 
 				err := json.Unmarshal([]byte(resp), &upd)
 				if err != nil {
