@@ -1,0 +1,405 @@
+{
+  "_readme": [
+    "Golden JWT/cookie compatibility fixtures for the token package.",
+    "Minted by this very code at commit 572dcaa5b2a0 (the version BCM and admin_api pin) before the",
+    "OAuth handshake-cookie change. compat_test.go asserts that Token, Parse, Set, Reset and Get",
+    "still mint and parse every token identically and emit byte-identical Set-Cookie headers.",
+    "If a change makes this file need regenerating, that change signs every logged-in user out on",
+    "deploy and breaks the rolling-deploy skew with instances still running the old code. Do not",
+    "regenerate: fix the code."
+  ],
+  "_provenance": {
+    "generated_by": "throwaway generator in the ratings-platform repo (see server/auth/token/compat_test.go there)",
+    "generated_date": "2026-08-13",
+    "replaced_by": "github.com/BeZeroCarbon/auth v1.21.3-0.20231024095238-572dcaa5b2a0",
+    "source_file": "token/jwt.go",
+    "source_module": "github.com/go-pkgz/auth v1.19.0"
+  },
+  "opts": {
+    "insecure_lax_domain": {
+      "secret": "another-secret",
+      "secure_cookies": false,
+      "disable_xsrf": false,
+      "disable_iat": true,
+      "token_duration_seconds": 900,
+      "cookie_duration_seconds": 2678400,
+      "jwt_cookie_name": "custom-jwt",
+      "jwt_cookie_domain": "example.com",
+      "xsrf_cookie_name": "custom-xsrf",
+      "issuer": "test-issuer",
+      "same_site": 2
+    },
+    "prod": {
+      "secret": "prod-like-secret-do-not-reuse",
+      "secure_cookies": true,
+      "disable_xsrf": false,
+      "disable_iat": false,
+      "token_duration_seconds": 3600,
+      "cookie_duration_seconds": 86400,
+      "jwt_cookie_name": "rp-token",
+      "jwt_cookie_domain": "",
+      "xsrf_cookie_name": "XSRF-TOKEN",
+      "issuer": "https://app.bezerocarbon.com",
+      "same_site": 1
+    },
+    "prod_no_iat": {
+      "secret": "prod-like-secret-do-not-reuse",
+      "secure_cookies": true,
+      "disable_xsrf": false,
+      "disable_iat": true,
+      "token_duration_seconds": 3600,
+      "cookie_duration_seconds": 86400,
+      "jwt_cookie_name": "rp-token",
+      "jwt_cookie_domain": "",
+      "xsrf_cookie_name": "XSRF-TOKEN",
+      "issuer": "https://app.bezerocarbon.com",
+      "same_site": 1
+    }
+  },
+  "tokens": [
+    {
+      "name": "user token",
+      "opts": "prod",
+      "input_claims": {
+        "aud": "bcm",
+        "exp": 1698147600,
+        "jti": "3d4d9e08-1b21-4c3f-9f5e-8f4a0e4f7c11",
+        "iat": 1698144000,
+        "iss": "https://app.bezerocarbon.com",
+        "nbf": 1698144000,
+        "sub": "cognito|1234-5678",
+        "user": {
+          "name": "Dev User",
+          "id": "cognito|1234-5678",
+          "picture": "https://example.com/pic.png",
+          "ip": "127.0.0.1",
+          "email": "dev.user@bezerocarbon.com",
+          "attrs": {
+            "admin": true,
+            "is_paid_sub": true,
+            "tenant": "bezero"
+          },
+          "role": "user"
+        },
+        "prov": "cognito"
+      },
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJiY20iLCJleHAiOjE2OTgxNDc2MDAsImp0aSI6IjNkNGQ5ZTA4LTFiMjEtNGMzZi05ZjVlLThmNGEwZTRmN2MxMSIsImlhdCI6MTY5ODE0NDAwMCwiaXNzIjoiaHR0cHM6Ly9hcHAuYmV6ZXJvY2FyYm9uLmNvbSIsIm5iZiI6MTY5ODE0NDAwMCwic3ViIjoiY29nbml0b3wxMjM0LTU2NzgiLCJ1c2VyIjp7Im5hbWUiOiJEZXYgVXNlciIsImlkIjoiY29nbml0b3wxMjM0LTU2NzgiLCJwaWN0dXJlIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9waWMucG5nIiwiaXAiOiIxMjcuMC4wLjEiLCJlbWFpbCI6ImRldi51c2VyQGJlemVyb2NhcmJvbi5jb20iLCJhdHRycyI6eyJhZG1pbiI6dHJ1ZSwiaXNfcGFpZF9zdWIiOnRydWUsInRlbmFudCI6ImJlemVybyJ9LCJyb2xlIjoidXNlciJ9LCJwcm92IjoiY29nbml0byJ9.2BUklxNUd3slVCPqAVO0WQfHP8fBd6AzX8a6h0ReAKI",
+      "parsed_claims": {
+        "aud": "bcm",
+        "exp": 1698147600,
+        "jti": "3d4d9e08-1b21-4c3f-9f5e-8f4a0e4f7c11",
+        "iat": 1698144000,
+        "iss": "https://app.bezerocarbon.com",
+        "nbf": 1698144000,
+        "sub": "cognito|1234-5678",
+        "user": {
+          "name": "Dev User",
+          "id": "cognito|1234-5678",
+          "picture": "https://example.com/pic.png",
+          "ip": "127.0.0.1",
+          "email": "dev.user@bezerocarbon.com",
+          "attrs": {
+            "admin": true,
+            "is_paid_sub": true,
+            "tenant": "bezero"
+          },
+          "role": "user"
+        },
+        "prov": "cognito"
+      }
+    },
+    {
+      "name": "session-only token",
+      "opts": "prod",
+      "input_claims": {
+        "aud": "bcm",
+        "exp": 1698147600,
+        "jti": "9c1b1a2e-77a0-4c1c-a0d4-6bb0f2f9a0aa",
+        "iat": 1698144000,
+        "iss": "https://app.bezerocarbon.com",
+        "nbf": 1698144000,
+        "sub": "cognito|1234-5678",
+        "user": {
+          "name": "Dev User",
+          "id": "cognito|1234-5678",
+          "picture": "https://example.com/pic.png",
+          "ip": "127.0.0.1",
+          "email": "dev.user@bezerocarbon.com",
+          "attrs": {
+            "admin": true,
+            "is_paid_sub": true,
+            "tenant": "bezero"
+          },
+          "role": "user"
+        },
+        "sess_only": true,
+        "prov": "cognito"
+      },
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJiY20iLCJleHAiOjE2OTgxNDc2MDAsImp0aSI6IjljMWIxYTJlLTc3YTAtNGMxYy1hMGQ0LTZiYjBmMmY5YTBhYSIsImlhdCI6MTY5ODE0NDAwMCwiaXNzIjoiaHR0cHM6Ly9hcHAuYmV6ZXJvY2FyYm9uLmNvbSIsIm5iZiI6MTY5ODE0NDAwMCwic3ViIjoiY29nbml0b3wxMjM0LTU2NzgiLCJ1c2VyIjp7Im5hbWUiOiJEZXYgVXNlciIsImlkIjoiY29nbml0b3wxMjM0LTU2NzgiLCJwaWN0dXJlIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9waWMucG5nIiwiaXAiOiIxMjcuMC4wLjEiLCJlbWFpbCI6ImRldi51c2VyQGJlemVyb2NhcmJvbi5jb20iLCJhdHRycyI6eyJhZG1pbiI6dHJ1ZSwiaXNfcGFpZF9zdWIiOnRydWUsInRlbmFudCI6ImJlemVybyJ9LCJyb2xlIjoidXNlciJ9LCJzZXNzX29ubHkiOnRydWUsInByb3YiOiJjb2duaXRvIn0.hFQlX4HISSKMNp7H9Tq1266onLDAjBzW4A2aH1MfdIU",
+      "parsed_claims": {
+        "aud": "bcm",
+        "exp": 1698147600,
+        "jti": "9c1b1a2e-77a0-4c1c-a0d4-6bb0f2f9a0aa",
+        "iat": 1698144000,
+        "iss": "https://app.bezerocarbon.com",
+        "nbf": 1698144000,
+        "sub": "cognito|1234-5678",
+        "user": {
+          "name": "Dev User",
+          "id": "cognito|1234-5678",
+          "picture": "https://example.com/pic.png",
+          "ip": "127.0.0.1",
+          "email": "dev.user@bezerocarbon.com",
+          "attrs": {
+            "admin": true,
+            "is_paid_sub": true,
+            "tenant": "bezero"
+          },
+          "role": "user"
+        },
+        "sess_only": true,
+        "prov": "cognito"
+      }
+    },
+    {
+      "name": "handshake token (no user)",
+      "opts": "prod",
+      "input_claims": {
+        "exp": 1698145800,
+        "iat": 1698144000,
+        "iss": "https://app.bezerocarbon.com",
+        "handshake": {
+          "state": "ec0af6e1c1f34a41b8f9f1f1e1c1a4d1",
+          "from": "https://app.bezerocarbon.com/portfolios",
+          "id": "cognito-internal"
+        }
+      },
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTgxNDU4MDAsImlhdCI6MTY5ODE0NDAwMCwiaXNzIjoiaHR0cHM6Ly9hcHAuYmV6ZXJvY2FyYm9uLmNvbSIsImhhbmRzaGFrZSI6eyJzdGF0ZSI6ImVjMGFmNmUxYzFmMzRhNDFiOGY5ZjFmMWUxYzFhNGQxIiwiZnJvbSI6Imh0dHBzOi8vYXBwLmJlemVyb2NhcmJvbi5jb20vcG9ydGZvbGlvcyIsImlkIjoiY29nbml0by1pbnRlcm5hbCJ9fQ.2jSyzc_Jza5kcREvndqhxGKIy4aWmvfNuC6jelMhZB4",
+      "parsed_claims": {
+        "exp": 1698145800,
+        "iat": 1698144000,
+        "iss": "https://app.bezerocarbon.com",
+        "handshake": {
+          "state": "ec0af6e1c1f34a41b8f9f1f1e1c1a4d1",
+          "from": "https://app.bezerocarbon.com/portfolios",
+          "id": "cognito-internal"
+        }
+      }
+    },
+    {
+      "name": "no-avatar token, alternative secret",
+      "opts": "insecure_lax_domain",
+      "input_claims": {
+        "exp": 1698147600,
+        "jti": "xsrf-id-1",
+        "iat": 1698144000,
+        "iss": "test-issuer",
+        "sub": "u1",
+        "user": {
+          "name": "No Ava",
+          "id": "u1",
+          "picture": ""
+        },
+        "no-ava": true
+      },
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTgxNDc2MDAsImp0aSI6InhzcmYtaWQtMSIsImlhdCI6MTY5ODE0NDAwMCwiaXNzIjoidGVzdC1pc3N1ZXIiLCJzdWIiOiJ1MSIsInVzZXIiOnsibmFtZSI6Ik5vIEF2YSIsImlkIjoidTEiLCJwaWN0dXJlIjoiIn0sIm5vLWF2YSI6dHJ1ZX0.oZPuKDDKFO9IDbRu-N0Cog7cWf4KexN7Pn-MaZ6VY8k",
+      "parsed_claims": {
+        "exp": 1698147600,
+        "jti": "xsrf-id-1",
+        "iat": 1698144000,
+        "iss": "test-issuer",
+        "sub": "u1",
+        "user": {
+          "name": "No Ava",
+          "id": "u1",
+          "picture": ""
+        },
+        "no-ava": true
+      }
+    }
+  ],
+  "set_cookies": [
+    {
+      "name": "set user token, permanent cookie",
+      "opts": "prod_no_iat",
+      "input_claims": {
+        "aud": "bcm",
+        "exp": 1698147600,
+        "jti": "3d4d9e08-1b21-4c3f-9f5e-8f4a0e4f7c11",
+        "iss": "https://app.bezerocarbon.com",
+        "nbf": 1698144000,
+        "sub": "cognito|1234-5678",
+        "user": {
+          "name": "Dev User",
+          "id": "cognito|1234-5678",
+          "picture": "https://example.com/pic.png",
+          "ip": "127.0.0.1",
+          "email": "dev.user@bezerocarbon.com",
+          "attrs": {
+            "admin": true,
+            "is_paid_sub": true,
+            "tenant": "bezero"
+          },
+          "role": "user"
+        },
+        "prov": "cognito"
+      },
+      "set_cookie": [
+        "rp-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJiY20iLCJleHAiOjE2OTgxNDc2MDAsImp0aSI6IjNkNGQ5ZTA4LTFiMjEtNGMzZi05ZjVlLThmNGEwZTRmN2MxMSIsImlzcyI6Imh0dHBzOi8vYXBwLmJlemVyb2NhcmJvbi5jb20iLCJuYmYiOjE2OTgxNDQwMDAsInN1YiI6ImNvZ25pdG98MTIzNC01Njc4IiwidXNlciI6eyJuYW1lIjoiRGV2IFVzZXIiLCJpZCI6ImNvZ25pdG98MTIzNC01Njc4IiwicGljdHVyZSI6Imh0dHBzOi8vZXhhbXBsZS5jb20vcGljLnBuZyIsImlwIjoiMTI3LjAuMC4xIiwiZW1haWwiOiJkZXYudXNlckBiZXplcm9jYXJib24uY29tIiwiYXR0cnMiOnsiYWRtaW4iOnRydWUsImlzX3BhaWRfc3ViIjp0cnVlLCJ0ZW5hbnQiOiJiZXplcm8ifSwicm9sZSI6InVzZXIifSwicHJvdiI6ImNvZ25pdG8ifQ.Yj0jiut1mtBfDx2Mzb4qt-VCs1eb8GUXrVWH8Z-QgCc; Path=/; Max-Age=86400; HttpOnly; Secure",
+        "XSRF-TOKEN=3d4d9e08-1b21-4c3f-9f5e-8f4a0e4f7c11; Path=/; Max-Age=86400; Secure"
+      ],
+      "returned_claims": {
+        "aud": "bcm",
+        "exp": 1698147600,
+        "jti": "3d4d9e08-1b21-4c3f-9f5e-8f4a0e4f7c11",
+        "iss": "https://app.bezerocarbon.com",
+        "nbf": 1698144000,
+        "sub": "cognito|1234-5678",
+        "user": {
+          "name": "Dev User",
+          "id": "cognito|1234-5678",
+          "picture": "https://example.com/pic.png",
+          "ip": "127.0.0.1",
+          "email": "dev.user@bezerocarbon.com",
+          "attrs": {
+            "admin": true,
+            "is_paid_sub": true,
+            "tenant": "bezero"
+          },
+          "role": "user"
+        },
+        "prov": "cognito"
+      }
+    },
+    {
+      "name": "set session-only token, session cookie",
+      "opts": "prod_no_iat",
+      "input_claims": {
+        "aud": "bcm",
+        "exp": 1698147600,
+        "jti": "9c1b1a2e-77a0-4c1c-a0d4-6bb0f2f9a0aa",
+        "iss": "https://app.bezerocarbon.com",
+        "nbf": 1698144000,
+        "sub": "cognito|1234-5678",
+        "user": {
+          "name": "Dev User",
+          "id": "cognito|1234-5678",
+          "picture": "https://example.com/pic.png",
+          "ip": "127.0.0.1",
+          "email": "dev.user@bezerocarbon.com",
+          "attrs": {
+            "admin": true,
+            "is_paid_sub": true,
+            "tenant": "bezero"
+          },
+          "role": "user"
+        },
+        "sess_only": true,
+        "prov": "cognito"
+      },
+      "set_cookie": [
+        "rp-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJiY20iLCJleHAiOjE2OTgxNDc2MDAsImp0aSI6IjljMWIxYTJlLTc3YTAtNGMxYy1hMGQ0LTZiYjBmMmY5YTBhYSIsImlzcyI6Imh0dHBzOi8vYXBwLmJlemVyb2NhcmJvbi5jb20iLCJuYmYiOjE2OTgxNDQwMDAsInN1YiI6ImNvZ25pdG98MTIzNC01Njc4IiwidXNlciI6eyJuYW1lIjoiRGV2IFVzZXIiLCJpZCI6ImNvZ25pdG98MTIzNC01Njc4IiwicGljdHVyZSI6Imh0dHBzOi8vZXhhbXBsZS5jb20vcGljLnBuZyIsImlwIjoiMTI3LjAuMC4xIiwiZW1haWwiOiJkZXYudXNlckBiZXplcm9jYXJib24uY29tIiwiYXR0cnMiOnsiYWRtaW4iOnRydWUsImlzX3BhaWRfc3ViIjp0cnVlLCJ0ZW5hbnQiOiJiZXplcm8ifSwicm9sZSI6InVzZXIifSwic2Vzc19vbmx5Ijp0cnVlLCJwcm92IjoiY29nbml0byJ9.viDtH-laosW1MiXRb6EbSwceN1YY1C0MFPRBMvfyC8w; Path=/; HttpOnly; Secure",
+        "XSRF-TOKEN=9c1b1a2e-77a0-4c1c-a0d4-6bb0f2f9a0aa; Path=/; Secure"
+      ],
+      "returned_claims": {
+        "aud": "bcm",
+        "exp": 1698147600,
+        "jti": "9c1b1a2e-77a0-4c1c-a0d4-6bb0f2f9a0aa",
+        "iss": "https://app.bezerocarbon.com",
+        "nbf": 1698144000,
+        "sub": "cognito|1234-5678",
+        "user": {
+          "name": "Dev User",
+          "id": "cognito|1234-5678",
+          "picture": "https://example.com/pic.png",
+          "ip": "127.0.0.1",
+          "email": "dev.user@bezerocarbon.com",
+          "attrs": {
+            "admin": true,
+            "is_paid_sub": true,
+            "tenant": "bezero"
+          },
+          "role": "user"
+        },
+        "sess_only": true,
+        "prov": "cognito"
+      }
+    },
+    {
+      "name": "set handshake token, session cookie",
+      "opts": "prod_no_iat",
+      "input_claims": {
+        "exp": 1698145800,
+        "iss": "https://app.bezerocarbon.com",
+        "handshake": {
+          "state": "ec0af6e1c1f34a41b8f9f1f1e1c1a4d1",
+          "from": "https://app.bezerocarbon.com/portfolios",
+          "id": "cognito-internal"
+        }
+      },
+      "set_cookie": [
+        "rp-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTgxNDU4MDAsImlzcyI6Imh0dHBzOi8vYXBwLmJlemVyb2NhcmJvbi5jb20iLCJoYW5kc2hha2UiOnsic3RhdGUiOiJlYzBhZjZlMWMxZjM0YTQxYjhmOWYxZjFlMWMxYTRkMSIsImZyb20iOiJodHRwczovL2FwcC5iZXplcm9jYXJib24uY29tL3BvcnRmb2xpb3MiLCJpZCI6ImNvZ25pdG8taW50ZXJuYWwifX0.tkx4euA7TUWFGc37a8WG4P0dB0kwEpCgSTlVk6ifG-I; Path=/; HttpOnly; Secure",
+        "XSRF-TOKEN=; Path=/; Secure"
+      ],
+      "returned_claims": {
+        "exp": 1698145800,
+        "iss": "https://app.bezerocarbon.com",
+        "handshake": {
+          "state": "ec0af6e1c1f34a41b8f9f1f1e1c1a4d1",
+          "from": "https://app.bezerocarbon.com/portfolios",
+          "id": "cognito-internal"
+        }
+      }
+    },
+    {
+      "name": "set user token, insecure with domain and SameSite=Lax",
+      "opts": "insecure_lax_domain",
+      "input_claims": {
+        "exp": 1698147600,
+        "jti": "xsrf-id-1",
+        "iss": "test-issuer",
+        "sub": "u1",
+        "user": {
+          "name": "No Ava",
+          "id": "u1",
+          "picture": ""
+        },
+        "no-ava": true
+      },
+      "set_cookie": [
+        "custom-jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTgxNDc2MDAsImp0aSI6InhzcmYtaWQtMSIsImlzcyI6InRlc3QtaXNzdWVyIiwic3ViIjoidTEiLCJ1c2VyIjp7Im5hbWUiOiJObyBBdmEiLCJpZCI6InUxIiwicGljdHVyZSI6IiJ9LCJuby1hdmEiOnRydWV9.bV3ZRy13be9TgyxRWRhwjfEh7oldZ7aJz8EbPvKqo4g; Path=/; Domain=example.com; Max-Age=2678400; HttpOnly; SameSite=Lax",
+        "custom-xsrf=xsrf-id-1; Path=/; Domain=example.com; Max-Age=2678400; SameSite=Lax"
+      ],
+      "returned_claims": {
+        "exp": 1698147600,
+        "jti": "xsrf-id-1",
+        "iss": "test-issuer",
+        "sub": "u1",
+        "user": {
+          "name": "No Ava",
+          "id": "u1",
+          "picture": ""
+        },
+        "no-ava": true
+      }
+    }
+  ],
+  "reset_cookies": [
+    {
+      "name": "reset with prod options",
+      "opts": "prod",
+      "set_cookie": [
+        "rp-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Secure",
+        "XSRF-TOKEN=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Secure"
+      ]
+    },
+    {
+      "name": "reset with insecure_lax_domain options",
+      "opts": "insecure_lax_domain",
+      "set_cookie": [
+        "custom-jwt=; Path=/; Domain=example.com; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; SameSite=Lax",
+        "custom-xsrf=; Path=/; Domain=example.com; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; SameSite=Lax"
+      ]
+    }
+  ]
+}
